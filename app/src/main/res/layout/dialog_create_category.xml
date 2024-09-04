@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+
+    <LinearLayout
+        android:padding="16dp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+
+
+        <!-- Color Selection -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Choose Color"
+            android:textSize="24sp"
+            android:layout_marginTop="16dp" />
+
+        <!-- Done Button -->
+
+        <GridLayout
+            android:id="@+id/color_grid_layout"
+            android:layout_width="240dp"
+            android:layout_height="94dp"
+            android:layout_marginTop="16dp"
+            android:columnCount="5"
+            android:rowCount="2"
+            android:layout_gravity="center_horizontal">
+
+            <!-- Example Color Buttons (Repeat for 10 colors) -->
+            <!-- You can add 10 buttons with different background colors -->
+            <!-- Each button should have a unique tag or identifier -->
+            <!-- Here's an example for 5 colors; replicate for all 10 -->
+            <View
+                android:id="@+id/color1"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_margin="4dp"
+                android:background="#f57629" />
+
+            <View
+                android:id="@+id/color2"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_margin="4dp"
+                android:background="#F44336" />
+
+            <View
+                android:id="@+id/color3"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_margin="4dp"
+                android:background="#E91E63" />
+
+            <View
+                android:id="@+id/color4"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_margin="4dp"
+                android:background="#9C27B0" />
+
+            <View
+                android:id="@+id/color5"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_margin="4dp"
+                android:background="#673AB7" />
+
+            <View
+                android:id="@+id/color6"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_margin="4dp"
+                android:background="#b9f64c" />
+
+            <View
+                android:id="@+id/color7"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_margin="4dp"
+                android:background="#38F387"
+                />
+
+            <View
+                android:id="@+id/color8"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_margin="4dp"
+                android:background="#31EADF" />
+
+            <View
+                android:id="@+id/color9"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_margin="4dp"
+                android:background="#B393f1" />
+
+            <View
+                android:id="@+id/color10"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_margin="4dp"
+                android:background="#c92ef5" />
+
+        </GridLayout>
+
+        <!-- Category Name Selection -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="24sp"
+            android:layout_marginTop="32dp"
+            android:text="Choose Category Name" />
+
+        <Spinner
+            android:id="@+id/category_name_spinner"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:textSize="20sp"
+            android:spinnerMode="dropdown" />
+
+        <Button
+            android:id="@+id/done_button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Done"
+            android:layout_gravity="end"
+            android:layout_marginTop="16dp" />
+
+    </LinearLayout>
+</ScrollView>

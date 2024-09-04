@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="set_types_array">
+        <item>Weight x Reps</item>
+        <item>Duration</item>
+    </string-array>
+</resources>
