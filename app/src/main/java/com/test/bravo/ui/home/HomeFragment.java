@@ -146,8 +146,8 @@ public class HomeFragment extends Fragment {
         String currentDate = new SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(new Date());
         dateText.setText(currentDate);
         dateText.setTypeface(null, Typeface.BOLD);
-        Typeface customFont = ResourcesCompat.getFont(getContext(), R.font.montserrat_variablefont_wght);
-        dateText.setTypeface(customFont);
+//        Typeface customFont = ResourcesCompat.getFont(getContext(), R.font.montserrat_variablefont_wght);
+//        dateText.setTypeface(customFont);
 
         // Set a click listener for the date selector button
         dateSelectorButton.setOnClickListener(v -> {
