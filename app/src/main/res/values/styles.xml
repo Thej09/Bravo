@@ -1,0 +1,5 @@
+<resources>
+    <style name="RoundedAlertDialog" parent="ThemeOverlay.MaterialComponents.Dialog.Alert">
+        <item name="android:background">@drawable/rounded_dialog_background</item>
+    </style>
+</resources>

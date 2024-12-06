@@ -35,76 +35,79 @@
             <!-- You can add 10 buttons with different background colors -->
             <!-- Each button should have a unique tag or identifier -->
             <!-- Here's an example for 5 colors; replicate for all 10 -->
-            <View
-                android:id="@+id/color1"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:layout_margin="4dp"
-                android:background="#f57629" />
-
-            <View
-                android:id="@+id/color2"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:layout_margin="4dp"
-                android:background="#F44336" />
-
-            <View
-                android:id="@+id/color3"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:layout_margin="4dp"
-                android:background="#E91E63" />
-
-            <View
-                android:id="@+id/color4"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:layout_margin="4dp"
-                android:background="#9C27B0" />
 
             <View
                 android:id="@+id/color5"
                 android:layout_width="40dp"
                 android:layout_height="40dp"
                 android:layout_margin="4dp"
-                android:background="#673AB7" />
+                android:background="#FD4500" />
+            <View
+                android:id="@+id/color1"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_margin="4dp"
+                android:background="#FF0033" />
+
+            <View
+                android:id="@+id/color2"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_margin="4dp"
+                android:background="#FF007F" />
+
+            <View
+                android:id="@+id/color3"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_margin="4dp"
+                android:background="#9B30FF" />
 
             <View
                 android:id="@+id/color6"
                 android:layout_width="40dp"
                 android:layout_height="40dp"
                 android:layout_margin="4dp"
-                android:background="#b9f64c" />
+                android:background="#6B10FF" />
 
-            <View
-                android:id="@+id/color7"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:layout_margin="4dp"
-                android:background="#38F387"
-                />
-
-            <View
-                android:id="@+id/color8"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:layout_margin="4dp"
-                android:background="#31EADF" />
 
             <View
                 android:id="@+id/color9"
                 android:layout_width="40dp"
                 android:layout_height="40dp"
                 android:layout_margin="4dp"
-                android:background="#B393f1" />
+                android:background="#0039A6" />
 
             <View
                 android:id="@+id/color10"
                 android:layout_width="40dp"
                 android:layout_height="40dp"
                 android:layout_margin="4dp"
-                android:background="#c92ef5" />
+                android:background="#0057FF" />
+
+            <View
+                android:id="@+id/color8"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_margin="4dp"
+                android:background="#20c68f" />
+
+            <View
+                android:id="@+id/color7"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_margin="4dp"
+                android:background="#00C851"
+                />
+
+            <View
+                android:id="@+id/color4"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_margin="4dp"
+                android:background="#00985E" />
+
+
 
         </GridLayout>
 

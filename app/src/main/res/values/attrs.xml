@@ -1,0 +1,4 @@
+<resources>
+    <attr name="PrimaryAltColor" format="color" />
+    <attr name="SecondaryTextColor" format="color" />
+</resources>
