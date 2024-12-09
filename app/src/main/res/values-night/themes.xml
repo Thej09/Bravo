@@ -12,7 +12,14 @@
         <item name="colorSecondaryVariant">@color/eerie_black</item>
         <item name="colorOnSecondary">@color/light_grey</item>
         <!-- Status bar color. -->
-        <item name="android:statusBarColor">?attr/colorPrimary</item>
+        <item name="android:statusBarColor">@color/dark_grey</item>
         <!-- Customize your theme here. -->
+
+        <item name="android:fontFamily">@font/poppins_light</item>
+
+        <!-- For Material components -->
+        <item name="fontFamily">@font/poppins_light</item>
+        <!-- Default font for bold text -->
+
     </style>
 </resources>

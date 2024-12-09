@@ -143,16 +143,21 @@ public class HomeFragment extends Fragment {
         TextView dateText = toolbar.findViewById(R.id.date_text);
         ImageView dateSelectorButton = toolbar.findViewById(R.id.date_selector_button);
 
-        String currentDate = new SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(new Date());
-        dateText.setText(currentDate);
-        dateText.setTypeface(null, Typeface.BOLD);
-//        Typeface customFont = ResourcesCompat.getFont(getContext(), R.font.montserrat_variablefont_wght);
-//        dateText.setTypeface(customFont);
+
+        Calendar calendar = Calendar.getInstance();
+        String dayWithOrdinal = getDayWithOrdinal(calendar.get(Calendar.DAY_OF_MONTH));
+        String mmm = new SimpleDateFormat("MMM", Locale.getDefault()).format(calendar.getTime());
+        String formattedDate = mmm + " " + dayWithOrdinal + ", " + calendar.get(Calendar.YEAR);
+        dateText.setText(formattedDate);
+
+
+        Typeface boldTypeface = ResourcesCompat.getFont(requireContext(), R.font.poppins_medium);
+        dateText.setTypeface(boldTypeface);
 
         // Set a click listener for the date selector button
         dateSelectorButton.setOnClickListener(v -> {
             // Get the current date
-            Calendar calendar = Calendar.getInstance();
+
             int year = calendar.get(Calendar.YEAR);
             int month = calendar.get(Calendar.MONTH);
             int day = calendar.get(Calendar.DAY_OF_MONTH);
@@ -163,7 +168,14 @@ public class HomeFragment extends Fragment {
                     (view, selectedYear, selectedMonth, selectedDay) -> {
                         // Update the date text with the selected date
                         String selectedDate = String.format(Locale.getDefault(), "%02d/%02d/%04d", selectedDay, selectedMonth + 1, selectedYear);
-                        dateText.setText(selectedDate);
+
+                        calendar.set(selectedYear, selectedMonth, selectedDay);
+                        String mmm_ = new SimpleDateFormat("MMM", Locale.getDefault()).format(calendar.getTime());
+                        String formattedDate_ = mmm_ + " " + getDayWithOrdinal(selectedDay) + ", " + selectedYear;
+
+                        dateText.setText(formattedDate_);
+                        dateText.setTypeface(boldTypeface);
+
 
                         // Perform an action based on the selected date
                         onDateSelected(selectedDate);
@@ -183,12 +195,11 @@ public class HomeFragment extends Fragment {
             dateText.setTypeface(null, Typeface.BOLD_ITALIC); // Make it bold and italic
             dateText.animate().scaleX(1.2f).scaleY(1.2f).setDuration(100).withEndAction(() -> {
                 dateText.animate().scaleX(1f).scaleY(1f).setDuration(100); // Reset size
-                dateText.setTypeface(null, Typeface.BOLD); // Reset typeface
+                dateText.setTypeface(boldTypeface);
             });
             showCompletedExercisesPopup();
         });
 
-        displayCompletedExercises();
 
         ImageView collapseAllButton = toolbar.findViewById(R.id.collapse_all_button);
         collapseAllButton.setOnClickListener(v -> collapseAllCategories());
@@ -219,6 +230,22 @@ public class HomeFragment extends Fragment {
         return root;
     }
 
+    private String getDayWithOrdinal(int day) {
+        if (day >= 11 && day <= 13) {
+            return day + "th";
+        }
+        switch (day % 10) {
+            case 1:
+                return day + "st";
+            case 2:
+                return day + "nd";
+            case 3:
+                return day + "rd";
+            default:
+                return day + "th";
+        }
+    }
+
     private void onDateSelected(String selectedDate) {
         // Display a toast with the selected date
 //        Toast.makeText(getContext(), "Selected Date: " + selectedDate, Toast.LENGTH_SHORT).show();
@@ -226,6 +253,8 @@ public class HomeFragment extends Fragment {
         // Get the current date in the same format
         SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy", Locale.getDefault());
         String currentDate = dateFormat.format(new Date());
+
+
 
         // Compare the selected date with the current date
         if (selectedDate.equals(currentDate)) {
@@ -289,7 +318,8 @@ public class HomeFragment extends Fragment {
         titleView.setTextColor(primaryColor); // Set text color to primary
         titleView.setPadding(20, 20, 20, 20); // Optional: Add padding
         titleView.setGravity(Gravity.CENTER); // Optional: Center the title
-        titleView.setTypeface(null, Typeface.BOLD);
+        Typeface boldTypeface = ResourcesCompat.getFont(requireContext(), R.font.poppins_medium);
+        titleView.setTypeface(boldTypeface);
 
 // Set the custom title view
         builder.setCustomTitle(titleView);
@@ -610,7 +640,9 @@ public class HomeFragment extends Fragment {
         categoryText.setText(categoryName);
         categoryText.setTextSize(18);
         categoryText.setTextColor(Color.WHITE);
-        categoryText.setTypeface(null, Typeface.BOLD);
+        Typeface boldTypeface = ResourcesCompat.getFont(requireContext(), R.font.poppins_medium);
+        categoryText.setTypeface(boldTypeface);
+
         categoryText.setId(View.generateViewId()); // Give an ID to position it in ConstraintLayout
 
         // Create and configure the Button
@@ -1486,35 +1518,6 @@ public class HomeFragment extends Fragment {
 
     }
 //
-    private void displayCompletedExercises() {
-        // Find the parent layout for completed exercises display
-//        LinearLayout completedExercisesLayout = requireView().findViewById(R.id.completed_exercises_layout);
-
-        // Clear previous entries to avoid duplication
-//        completedExercisesLayout.removeAllViews();
-//
-//        // Add a title for the completed exercises section
-//        TextView title = new TextView(getContext());
-//        title.setText("Completed Exercises:");
-//        title.setTextSize(18);
-//        title.setPadding(8, 8, 8, 8);
-//        title.setTypeface(null, Typeface.BOLD);
-//        completedExercisesLayout.addView(title);
-//
-//        // Loop through the completedExercises list and create TextViews for each
-//        for (int i = 0; i < completedExercises.size(); i++) {
-//            Exercise exercise = completedExercises.get(i);
-//
-//            // Create a TextView for each exercise
-//            TextView exerciseView = new TextView(getContext());
-//            exerciseView.setText((i + 1) + ". " + exercise.getName()); // Add index and name
-//            exerciseView.setTextSize(16);
-//            exerciseView.setPadding(8, 4, 8, 4);
-//
-//            // Add the TextView to the completedExercisesLayout
-//            completedExercisesLayout.addView(exerciseView);
-//        }
-    }
 
     private String padToFourCharacters(String input) {
         int paddingLength = 4 - input.length();

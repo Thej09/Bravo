@@ -14,5 +14,12 @@
         <!-- Status bar color. -->
         <item name="android:statusBarColor">?attr/colorPrimary</item>
         <!-- Customize your theme here. -->
+
+        <!-- Set Montserrat as the default font -->
+        <item name="android:fontFamily">@font/poppins_light</item>
+
+        <!-- For Material components -->
+        <item name="fontFamily">@font/poppins_light</item>
+
     </style>
 </resources>

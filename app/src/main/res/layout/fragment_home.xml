@@ -26,6 +26,7 @@
             android:layout_gravity="start|center_vertical"
             android:paddingStart="0dp"
             android:paddingEnd="8dp"
+            android:paddingTop="4dp"
             android:textSize="20sp"
             android:textColor="?attr/PrimaryAltColor"
             android:text="DD/MM/YYYY" />
@@ -35,12 +36,14 @@
             android:id="@+id/date_selector_button"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_gravity="end|center_vertical"
+            android:layout_gravity="start|center_vertical"
             android:paddingEnd="16dp"
             android:paddingStart="8dp"
-            android:src="@android:drawable/ic_menu_today"
+            android:paddingTop="8dp"
+            android:paddingBottom="8dp"
+            android:src="@android:drawable/arrow_down_float"
             android:contentDescription="Select Date"
-            app:tint="@android:color/white" />
+            app:tint="?attr/PrimaryAltColor" />
 
         <!-- Add a Collapse All Button -->
         <ImageView
