@@ -4,7 +4,7 @@
         <!-- Primary brand color. -->
         <item name="colorPrimary">@color/purple_500</item>
         <item name="colorPrimaryVariant">@color/purple_500</item>
-        <item name="colorOnPrimary">@color/dark_grey</item>
+        <item name="colorOnPrimary">@color/anthracite</item>
         <item name="PrimaryAltColor">@color/purple_500</item>
         <item name="SecondaryTextColor">@color/purple_500</item>
         <!-- Secondary brand color. -->

@@ -6,6 +6,7 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
+import java.lang.reflect.Field;
 import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
@@ -51,6 +52,7 @@ import android.widget.EditText;
 import android.widget.GridLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.NumberPicker;
 import android.widget.ScrollView;
 import android.widget.Spinner;
 import android.widget.TableLayout;
@@ -149,7 +151,6 @@ public class HomeFragment extends Fragment {
         String mmm = new SimpleDateFormat("MMM", Locale.getDefault()).format(calendar.getTime());
         String formattedDate = mmm + " " + dayWithOrdinal + ", " + calendar.get(Calendar.YEAR);
         dateText.setText(formattedDate);
-
 
         Typeface boldTypeface = ResourcesCompat.getFont(requireContext(), R.font.poppins_medium);
         dateText.setTypeface(boldTypeface);
@@ -855,7 +856,7 @@ public class HomeFragment extends Fragment {
             String setType = setTypeSpinner.getSelectedItem().toString();
 
             // Get the categoryName from the categoryLayout's tag or other associated data
-            String categoryName = (String) categoryLayout.getTag(); // Assuming you've set the category name as the tag
+            String categoryName = (String) categoryLayout.getTag();
 
             // Retrieve the Category object
             Category category = categoryMap.get(categoryName);
@@ -1083,6 +1084,10 @@ public class HomeFragment extends Fragment {
 
         // Set an OnCheckedChangeListener to change the alpha when the CheckBox is checked
         exerciseCheckBox.setOnCheckedChangeListener((buttonView, isChecked) -> {
+
+            String currentDate = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
+            String categoryName = (String) categoryLayout.getTag();
+
             if (isChecked) {
                 backgroundDrawable.setAlpha(128); // Set alpha to 0.5 (128 out of 255)
                 newExercise.setDoneToday(true);
@@ -1090,12 +1095,14 @@ public class HomeFragment extends Fragment {
                 if (!completedExercises.contains(newExercise)) {
                     completedExercises.add(newExercise);
                 }
+                databaseHelper.saveDailyActivity(currentDate, newExercise, categoryName);
 
             } else {
                 backgroundDrawable.setAlpha(255); // Set alpha back to 1.0
                 newExercise.setDoneToday(false);
 
                 completedExercises.remove(newExercise);
+                databaseHelper.deleteDailyActivity(currentDate, newExercise.getName());
             }
 //            displayCompletedExercises();
             databaseHelper.saveDataToDatabase(categoryMap);
@@ -1249,10 +1256,16 @@ public class HomeFragment extends Fragment {
         LinearLayout popupLayout = popupView.findViewById(R.id.popup_root); // Use popupView instead of view
         popupLayout.setBackgroundColor(backgroundColor);
 
+        TypedValue typedValue = new TypedValue();
+        Context context = getContext();
+
+        context.getTheme().resolveAttribute(R.attr.SecondaryTextColor, typedValue, true);
+        int primaryColor = typedValue.data;
+
         // Set the background color of the popup
-        exerciseNameView.setTextColor(availableColors[categoryColor]);
-        categoryNameView.setTextColor(availableColors[categoryColor]);
-        closeButton.setColorFilter(availableColors[categoryColor]);
+        exerciseNameView.setTextColor(primaryColor);
+        categoryNameView.setTextColor(primaryColor);
+        closeButton.setColorFilter(primaryColor);
 
 
         int[] columnCount = {4};
@@ -1310,6 +1323,7 @@ public class HomeFragment extends Fragment {
 
         // Define default cell width
         int cellWidth = 100; // Adjust as needed for doubled width
+        int dpToPx = (int) (getResources().getDisplayMetrics().density + 0.5f);
 
         if (setType.equals("Weight x Reps")) {
 
@@ -1324,84 +1338,144 @@ public class HomeFragment extends Fragment {
 
             // Create the first row (Weight)
             TableRow weightRow = new TableRow(getContext());
+
+            // Create and style the weight label
             TextView weightLabel = new TextView(getContext());
             weightLabel.setText("Weight");
             weightLabel.setPadding(8, 8, 8, 8);
+            weightLabel.setGravity(Gravity.CENTER_VERTICAL); // Center vertically within its row
+
+            TableRow.LayoutParams labelParams = new TableRow.LayoutParams(
+                    60 * dpToPx, // Set a fixed width for the label, or use WRAP_CONTENT
+                    TableRow.LayoutParams.MATCH_PARENT
+            );
+            labelParams.setMargins(8, 0, 8, 0); // Add optional margins
+            weightLabel.setLayoutParams(labelParams);
+
             weightRow.addView(weightLabel);
 
             for (int i = 0; i < columnCount; i++) {
-                EditText weightCell = new EditText(getContext());
-                weightCell.setText(String.valueOf(exercise.getWeightReps().get(i)[0])); // Display weight
-                weightCell.setInputType(InputType.TYPE_CLASS_NUMBER);
-                weightCell.setPadding(8, 8, 8, 8);
-                weightCell.setGravity(Gravity.CENTER);
-                TableRow.LayoutParams cellParams = new TableRow.LayoutParams(cellWidth, TableRow.LayoutParams.WRAP_CONTENT);
-                weightCell.setLayoutParams(cellParams);
+                // Create a NumberPicker for Weight
+                NumberPicker weightPicker = new NumberPicker(getContext());
+                int minValue = 0; // Minimum value
+                int maxValue = 300; // Maximum value
+                int step = 5; // Step increment
 
-                // Add TextWatcher for weight cell
+                // Calculate the number of steps
+                int steps = (maxValue - minValue) / step;
+
+                // Create an array of values to display
+                String[] displayedValues = new String[steps + 1];
+                for (int j = 0; j <= steps; j++) {
+                    displayedValues[j] = String.valueOf(minValue + (j * step));
+                }
+
+                // Set the min and max values based on the number of steps
+                weightPicker.setMinValue(0);
+                weightPicker.setMaxValue(steps);
+                weightPicker.setDisplayedValues(displayedValues); // Set the custom values
+
+                // Set the initial value
+                int initialValue = exercise.getWeightReps().get(i)[0];
+                weightPicker.setValue(initialValue / step);
+                weightPicker.setWrapSelectorWheel(true); // Wrap-around behavior
+
+                // Adjust layout parameters
+                TableRow.LayoutParams cellParams = new TableRow.LayoutParams(cellWidth, 50 * dpToPx); // Height = 50dp
+                cellParams.setMargins(8, 0, 8, 0); // Adjust margins
+                weightPicker.setLayoutParams(cellParams);
+
+                // Customize the NumberPicker for a compact appearance
+                try {
+                    // Access the EditText field inside the NumberPicker
+                    Field inputTextField = NumberPicker.class.getDeclaredField("mInputText");
+                    inputTextField.setAccessible(true);
+                    EditText inputText = (EditText) inputTextField.get(weightPicker);
+
+                    // Reduce text size and padding for a more compact look
+                    inputText.setTextSize(12); // Set text size to 12sp
+                    inputText.setPadding(0, 0, 0, 0); // Remove padding
+                    inputText.setGravity(Gravity.CENTER); // Center the text
+
+                    // Remove selection dividers (optional, for a cleaner look)
+                    Field selectionDivider = NumberPicker.class.getDeclaredField("mSelectionDivider");
+                    selectionDivider.setAccessible(true);
+                    selectionDivider.set(weightPicker, null); // Set divider to null
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+
+                // Add listener to update weight
                 final int columnIndex = i; // Capture column index
-                weightCell.addTextChangedListener(new TextWatcher() {
-                    @Override
-                    public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
-
-                    @Override
-                    public void onTextChanged(CharSequence s, int start, int before, int count) {
-                        // Update exercise weightReps for the specific column
-                        try {
-                            int weight = Integer.parseInt(s.toString());
-                            exercise.getWeightReps().get(columnIndex)[0] = weight; // Update weight
-                        } catch (NumberFormatException e) {
-                            // Handle invalid input (e.g., empty text)
-                            exercise.getWeightReps().get(columnIndex)[0] = 0;
-                        }
-                    }
-
-                    @Override
-                    public void afterTextChanged(Editable s) {}
+                weightPicker.setOnValueChangedListener((picker, oldVal, newVal) -> {
+                    int selectedWeight = Integer.parseInt(displayedValues[newVal]);
+                    exercise.getWeightReps().get(columnIndex)[0] = selectedWeight;
                 });
 
-                weightRow.addView(weightCell);
+                // Add NumberPicker to the row
+                weightRow.addView(weightPicker);
             }
 
             // Create the second row (Reps)
             TableRow repsRow = new TableRow(getContext());
+
             TextView repsLabel = new TextView(getContext());
             repsLabel.setText("Reps");
             repsLabel.setPadding(8, 8, 8, 8);
+            repsLabel.setGravity(Gravity.CENTER_VERTICAL); // Center vertically within its row
+
+            TableRow.LayoutParams weightLabelParams = new TableRow.LayoutParams(
+                    60 * dpToPx, // Set a fixed width for the label, or use WRAP_CONTENT
+                    TableRow.LayoutParams.MATCH_PARENT
+            );
+            weightLabelParams.setMargins(8, 0, 8, 0); // Add optional margins
+            repsLabel.setLayoutParams(weightLabelParams);
+
             repsRow.addView(repsLabel);
 
             for (int i = 0; i < columnCount; i++) {
-                EditText repsCell = new EditText(getContext());
-                repsCell.setText(String.valueOf(exercise.getWeightReps().get(i)[1])); // Display reps
-                repsCell.setPadding(8, 8, 8, 8);
-                repsCell.setInputType(InputType.TYPE_CLASS_NUMBER);
-                repsCell.setGravity(Gravity.CENTER);
-                TableRow.LayoutParams cellParams = new TableRow.LayoutParams(cellWidth, TableRow.LayoutParams.WRAP_CONTENT);
-                repsCell.setLayoutParams(cellParams);
+                // Create a NumberPicker for Reps
+                NumberPicker repsPicker = new NumberPicker(getContext());
+                repsPicker.setMinValue(0); // Minimum value
+                repsPicker.setMaxValue(30); // Maximum value
+                repsPicker.setValue(exercise.getWeightReps().get(i)[1]); // Initial value
+                repsPicker.setWrapSelectorWheel(true); // Wrap-around behavior
 
-                // Add TextWatcher for reps cell
+                // Adjust the layout to make it more compact
+
+
+                TableRow.LayoutParams cellParams = new TableRow.LayoutParams(cellWidth, 50 * dpToPx); // Height = 50dp
+                cellParams.setMargins(8, 0, 8, 0); // Adjust margins
+                repsPicker.setLayoutParams(cellParams);
+
+                // Customize the NumberPicker for a compact appearance
+                try {
+                    // Access the EditText field inside the NumberPicker
+                    Field inputTextField = NumberPicker.class.getDeclaredField("mInputText");
+                    inputTextField.setAccessible(true);
+                    EditText inputText = (EditText) inputTextField.get(repsPicker);
+
+                    // Reduce text size and padding for a more compact look
+                    inputText.setTextSize(12); // Set text size to 12sp
+                    inputText.setPadding(0, 0, 0, 0); // Remove padding
+                    inputText.setGravity(Gravity.CENTER); // Center the text
+
+                    // Remove selection dividers (optional, for a cleaner look)
+                    Field selectionDivider = NumberPicker.class.getDeclaredField("mSelectionDivider");
+                    selectionDivider.setAccessible(true);
+                    selectionDivider.set(repsPicker, null); // Set divider to null
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+
+                // Add listener to update reps
                 final int columnIndex = i; // Capture column index
-                repsCell.addTextChangedListener(new TextWatcher() {
-                    @Override
-                    public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
-
-                    @Override
-                    public void onTextChanged(CharSequence s, int start, int before, int count) {
-                        // Update exercise weightReps for the specific column
-                        try {
-                            int reps = Integer.parseInt(s.toString());
-                            exercise.getWeightReps().get(columnIndex)[1] = reps; // Update reps
-                        } catch (NumberFormatException e) {
-                            // Handle invalid input (e.g., empty text)
-                            exercise.getWeightReps().get(columnIndex)[1] = 0;
-                        }
-                    }
-
-                    @Override
-                    public void afterTextChanged(Editable s) {}
+                repsPicker.setOnValueChangedListener((picker, oldVal, newVal) -> {
+                    exercise.getWeightReps().get(columnIndex)[1] = newVal;
                 });
 
-                repsRow.addView(repsCell);
+                // Add NumberPicker to the row
+                repsRow.addView(repsPicker);
             }
 
             // Add both rows to the table
