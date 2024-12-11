@@ -174,12 +174,9 @@ public class DashboardFragment extends Fragment {
                         exerciseView.setTextSize(12);
                         exerciseView.setTextColor(Color.WHITE); // Set text color to white for contrast
 
-                        // Set the background color based on the exercise's category
-//                        int categoryColor = exercise.getCategory().getColor(); // Assuming Exercise has a getCategory() method
-                        int categoryColor = exercise.getCategory().getColor();
 
                         GradientDrawable background = new GradientDrawable();
-                        background.setColor(availableColors[categoryColor]);
+                        background.setColor(availableColors[exercise.getCategoryClr()]);
                         background.setCornerRadius(4 * getResources().getDisplayMetrics().density); // Rounded corners
                         exerciseView.setBackground(background);
 
@@ -220,8 +217,8 @@ public class DashboardFragment extends Fragment {
         title.setTextSize(18);
         TypedValue typedValue = new TypedValue();
         Context context = getContext();
-        Typeface boldTypeface = ResourcesCompat.getFont(requireContext(), R.font.poppins_medium);
-        title.setTypeface(boldTypeface);
+//        Typeface boldTypeface = ResourcesCompat.getFont(requireContext(), R.font.poppins_medium);
+//        title.setTypeface(boldTypeface);
         title.setPadding(16, 16, 16, 16);
 
         context.getTheme().resolveAttribute(R.attr.SecondaryTextColor, typedValue, true);
@@ -239,8 +236,8 @@ public class DashboardFragment extends Fragment {
 
             // Set the background color and rounded corners for the exercise container
             GradientDrawable backgroundDrawable = new GradientDrawable();
-            int categoryColor = exercise.getCategory().getColor(); // Assuming category has a color
-            backgroundDrawable.setColor(availableColors[categoryColor]); // Use the category color
+//            int categoryColor = exercise.getCategory().getColor(); // Assuming category has a color
+            backgroundDrawable.setColor(availableColors[exercise.getCategoryClr()]);
             backgroundDrawable.setCornerRadius(16); // Rounded corners
             exerciseContainer.setBackground(backgroundDrawable);
 

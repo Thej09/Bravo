@@ -6,6 +6,8 @@ import java.util.List;
 public class Exercise {
     private String name;
     private Category category;
+    private String categoryName;
+    private int categoryClr;
     private String setType;
     private boolean doneToday;
     private List<int[]> weightReps; // List of pairs (weight, reps)
@@ -17,6 +19,8 @@ public class Exercise {
         this.name = name;
         this.category = category;
         this.setType = setType;
+        this.categoryName = "";
+        this.categoryClr = 1;
         this.weightReps = new ArrayList<>();
         this.durations = new ArrayList<>();
         this.doneToday = false;
@@ -30,6 +34,22 @@ public class Exercise {
 
     public void setName(String name) {
         this.name = name;
+    }
+
+    public String getCategoryName() {
+        return categoryName;
+    }
+
+    public void setCategoryName(String categoryName) {
+        this.categoryName = categoryName;
+    }
+
+    public int getCategoryClr() {
+        return categoryClr;
+    }
+
+    public void setCategoryClr(int clr) {
+        this.categoryClr = clr;
     }
 
     public String getExerciseNotes() {

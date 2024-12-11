@@ -9,6 +9,7 @@ import java.io.FileWriter;
 import java.lang.reflect.Field;
 import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -135,6 +136,7 @@ public class HomeFragment extends Fragment {
 
         databaseHelper = new DatabaseHelper(getContext());
 
+//          HERE
         categoryMap = databaseHelper.loadDataFromDatabase();
 
 
@@ -152,8 +154,8 @@ public class HomeFragment extends Fragment {
         String formattedDate = mmm + " " + dayWithOrdinal + ", " + calendar.get(Calendar.YEAR);
         dateText.setText(formattedDate);
 
-        Typeface boldTypeface = ResourcesCompat.getFont(requireContext(), R.font.poppins_medium);
-        dateText.setTypeface(boldTypeface);
+//        Typeface boldTypeface = ResourcesCompat.getFont(requireContext(), R.font.poppins_medium);
+//        dateText.setTypeface(boldTypeface);
 
         // Set a click listener for the date selector button
         dateSelectorButton.setOnClickListener(v -> {
@@ -175,7 +177,7 @@ public class HomeFragment extends Fragment {
                         String formattedDate_ = mmm_ + " " + getDayWithOrdinal(selectedDay) + ", " + selectedYear;
 
                         dateText.setText(formattedDate_);
-                        dateText.setTypeface(boldTypeface);
+//                        dateText.setTypeface(boldTypeface);
 
 
                         // Perform an action based on the selected date
@@ -196,7 +198,7 @@ public class HomeFragment extends Fragment {
             dateText.setTypeface(null, Typeface.BOLD_ITALIC); // Make it bold and italic
             dateText.animate().scaleX(1.2f).scaleY(1.2f).setDuration(100).withEndAction(() -> {
                 dateText.animate().scaleX(1f).scaleY(1f).setDuration(100); // Reset size
-                dateText.setTypeface(boldTypeface);
+//                dateText.setTypeface(boldTypeface);
             });
             showCompletedExercisesPopup();
         });
@@ -1095,7 +1097,7 @@ public class HomeFragment extends Fragment {
                 if (!completedExercises.contains(newExercise)) {
                     completedExercises.add(newExercise);
                 }
-                databaseHelper.saveDailyActivity(currentDate, newExercise, categoryName);
+                databaseHelper.saveDailyActivity(currentDate, newExercise, categoryName, categoryColor);
 
             } else {
                 backgroundDrawable.setAlpha(255); // Set alpha back to 1.0
@@ -1336,20 +1338,18 @@ public class HomeFragment extends Fragment {
                 exercise.getWeightReps().remove(exercise.getWeightReps().size() - 1); // Remove the last element
             }
 
-            // Create the first row (Weight)
             TableRow weightRow = new TableRow(getContext());
 
-            // Create and style the weight label
             TextView weightLabel = new TextView(getContext());
             weightLabel.setText("Weight");
             weightLabel.setPadding(8, 8, 8, 8);
-            weightLabel.setGravity(Gravity.CENTER_VERTICAL); // Center vertically within its row
+            weightLabel.setGravity(Gravity.CENTER_VERTICAL);
 
             TableRow.LayoutParams labelParams = new TableRow.LayoutParams(
-                    60 * dpToPx, // Set a fixed width for the label, or use WRAP_CONTENT
+                    60 * dpToPx,
                     TableRow.LayoutParams.MATCH_PARENT
             );
-            labelParams.setMargins(8, 0, 8, 0); // Add optional margins
+            labelParams.setMargins(8, 0, 8, 0);
             weightLabel.setLayoutParams(labelParams);
 
             weightRow.addView(weightLabel);
@@ -1357,53 +1357,39 @@ public class HomeFragment extends Fragment {
             for (int i = 0; i < columnCount; i++) {
                 // Create a NumberPicker for Weight
                 NumberPicker weightPicker = new NumberPicker(getContext());
-                int minValue = 0; // Minimum value
-                int maxValue = 300; // Maximum value
-                int step = 5; // Step increment
 
-                // Calculate the number of steps
-                int steps = (maxValue - minValue) / step;
-
-                // Create an array of values to display
-                String[] displayedValues = new String[steps + 1];
-                for (int j = 0; j <= steps; j++) {
-                    displayedValues[j] = String.valueOf(minValue + (j * step));
-                }
+                // Generate displayed values in reverse order
+                List<String> valuesList = new ArrayList<>();
+//                List<String> valuesList = new ArrayList<>(Arrays.asList("300", "295", "290", "285", "12", "11", "10", "2", "1", "0"));
+                for (int j = 300; j >= 55; j -= 5) valuesList.add(String.valueOf(j));
+                for (int j = 50; j >= 12; j -= 2) valuesList.add(String.valueOf(j));
+                for (int j = 10; j >= 0; j -= 1) valuesList.add(String.valueOf(j));
+                Collections.reverse(valuesList);
+                String[] displayedValues = valuesList.toArray(new String[0]);
+//                String[] displayedValues = {"300", "295", "290", "285", "12", "11", "10", "2", "1", "0"};
 
                 // Set the min and max values based on the number of steps
                 weightPicker.setMinValue(0);
-                weightPicker.setMaxValue(steps);
+                weightPicker.setMaxValue(displayedValues.length - 1);
                 weightPicker.setDisplayedValues(displayedValues); // Set the custom values
 
-                // Set the initial value
+                // Ensure the correct initial value is set
                 int initialValue = exercise.getWeightReps().get(i)[0];
-                weightPicker.setValue(initialValue / step);
-                weightPicker.setWrapSelectorWheel(true); // Wrap-around behavior
+                int initialIndex = valuesList.indexOf(String.valueOf(initialValue));
+                if (initialIndex == -1) initialIndex = 0; // Default to 0 if not found
+                weightPicker.setValue(initialIndex);
+
+                Log.e("numPicker", "Initial Value: " + initialValue);
+                Log.e("numPicker", "Initial index: " + initialIndex);
+
+                Log.e("numPicker", "Display int: " + Integer.parseInt(displayedValues[initialIndex]));
+                Log.e("numPicker", "Display str: " + Arrays.toString(displayedValues));
 
                 // Adjust layout parameters
                 TableRow.LayoutParams cellParams = new TableRow.LayoutParams(cellWidth, 50 * dpToPx); // Height = 50dp
                 cellParams.setMargins(8, 0, 8, 0); // Adjust margins
                 weightPicker.setLayoutParams(cellParams);
 
-                // Customize the NumberPicker for a compact appearance
-                try {
-                    // Access the EditText field inside the NumberPicker
-                    Field inputTextField = NumberPicker.class.getDeclaredField("mInputText");
-                    inputTextField.setAccessible(true);
-                    EditText inputText = (EditText) inputTextField.get(weightPicker);
-
-                    // Reduce text size and padding for a more compact look
-                    inputText.setTextSize(12); // Set text size to 12sp
-                    inputText.setPadding(0, 0, 0, 0); // Remove padding
-                    inputText.setGravity(Gravity.CENTER); // Center the text
-
-                    // Remove selection dividers (optional, for a cleaner look)
-                    Field selectionDivider = NumberPicker.class.getDeclaredField("mSelectionDivider");
-                    selectionDivider.setAccessible(true);
-                    selectionDivider.set(weightPicker, null); // Set divider to null
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
 
                 // Add listener to update weight
                 final int columnIndex = i; // Capture column index
@@ -1424,63 +1410,61 @@ public class HomeFragment extends Fragment {
             repsLabel.setPadding(8, 8, 8, 8);
             repsLabel.setGravity(Gravity.CENTER_VERTICAL); // Center vertically within its row
 
-            TableRow.LayoutParams weightLabelParams = new TableRow.LayoutParams(
+            TableRow.LayoutParams repLabelParams = new TableRow.LayoutParams(
                     60 * dpToPx, // Set a fixed width for the label, or use WRAP_CONTENT
                     TableRow.LayoutParams.MATCH_PARENT
             );
-            weightLabelParams.setMargins(8, 0, 8, 0); // Add optional margins
-            repsLabel.setLayoutParams(weightLabelParams);
+            repLabelParams.setMargins(8, 0, 8, 0); // Add optional margins
+            repsLabel.setLayoutParams(repLabelParams);
 
             repsRow.addView(repsLabel);
 
             for (int i = 0; i < columnCount; i++) {
                 // Create a NumberPicker for Reps
                 NumberPicker repsPicker = new NumberPicker(getContext());
-                repsPicker.setMinValue(0); // Minimum value
-                repsPicker.setMaxValue(30); // Maximum value
-                repsPicker.setValue(exercise.getWeightReps().get(i)[1]); // Initial value
-                repsPicker.setWrapSelectorWheel(true); // Wrap-around behavior
 
-                // Adjust the layout to make it more compact
+                // Create the values for the NumberPicker
+                int minValue = 0;
+                int maxValue = 30;
+                List<String> reversedValues = new ArrayList<>();
 
+                // Reverse the order of values
+                for (int j = maxValue; j >= minValue; j--) {
+                    reversedValues.add(String.valueOf(j));
+                }
+
+                String[] displayedValues = reversedValues.toArray(new String[0]);
+
+                // Set the min and max values
+                repsPicker.setMinValue(0);
+                repsPicker.setMaxValue(displayedValues.length - 1);
+                repsPicker.setDisplayedValues(displayedValues); // Set the reversed values
+
+                // Set the initial value
+                int initialValue = exercise.getWeightReps().get(i)[1];
+                int initialIndex = maxValue - initialValue; // Adjust for reversed order
+                repsPicker.setValue(initialIndex);
+
+                repsPicker.setWrapSelectorWheel(true);
 
                 TableRow.LayoutParams cellParams = new TableRow.LayoutParams(cellWidth, 50 * dpToPx); // Height = 50dp
                 cellParams.setMargins(8, 0, 8, 0); // Adjust margins
                 repsPicker.setLayoutParams(cellParams);
 
-                // Customize the NumberPicker for a compact appearance
-                try {
-                    // Access the EditText field inside the NumberPicker
-                    Field inputTextField = NumberPicker.class.getDeclaredField("mInputText");
-                    inputTextField.setAccessible(true);
-                    EditText inputText = (EditText) inputTextField.get(repsPicker);
-
-                    // Reduce text size and padding for a more compact look
-                    inputText.setTextSize(12); // Set text size to 12sp
-                    inputText.setPadding(0, 0, 0, 0); // Remove padding
-                    inputText.setGravity(Gravity.CENTER); // Center the text
-
-                    // Remove selection dividers (optional, for a cleaner look)
-                    Field selectionDivider = NumberPicker.class.getDeclaredField("mSelectionDivider");
-                    selectionDivider.setAccessible(true);
-                    selectionDivider.set(repsPicker, null); // Set divider to null
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
 
                 // Add listener to update reps
                 final int columnIndex = i; // Capture column index
                 repsPicker.setOnValueChangedListener((picker, oldVal, newVal) -> {
-                    exercise.getWeightReps().get(columnIndex)[1] = newVal;
+                    int selectedReps = maxValue - newVal; // Adjust for reversed order
+                    exercise.getWeightReps().get(columnIndex)[1] = selectedReps;
                 });
 
-                // Add NumberPicker to the row
                 repsRow.addView(repsPicker);
             }
 
-            // Add both rows to the table
             tableLayout.addView(weightRow);
             tableLayout.addView(repsRow);
+
         } else if (setType.equals("Duration")) {
             // Ensure durations list has enough columns
             while (exercise.getDurations().size() < columnCount) {

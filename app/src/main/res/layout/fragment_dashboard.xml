@@ -16,7 +16,6 @@
             android:layout_height="wrap_content"
             android:text="December 2024"
             android:textSize="20sp"
-            android:textStyle="bold"
             android:gravity="start"
             android:textColor="@color/purple_500"
             android:paddingTop="2dp"

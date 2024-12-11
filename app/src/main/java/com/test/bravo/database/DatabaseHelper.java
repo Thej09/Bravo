@@ -5,6 +5,7 @@ import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 import android.content.ContentValues;
 import android.database.Cursor;
+import android.util.Log;
 
 import com.test.bravo.model.Category;
 import com.test.bravo.model.Exercise;
@@ -22,7 +23,7 @@ import java.util.Map;
 public class DatabaseHelper extends SQLiteOpenHelper {
 
     private static final String DATABASE_NAME = "bravo.db";
-    private static final int DATABASE_VERSION = 5;
+    private static final int DATABASE_VERSION = 6;
 
     // Table and Column Definitions
     private static final String TABLE_CATEGORY = "Category";
@@ -53,7 +54,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
     @Override
     public void onCreate(SQLiteDatabase db) {
-        String CREATE_CATEGORY_TABLE = "CREATE TABLE " + TABLE_CATEGORY + " (" +
+        String CREATE_CATEGORY_TABLE = "CREATE TABLE IF NOT EXISTS " + TABLE_CATEGORY + " (" +
                 KEY_CATEGORY_NAME + " TEXT PRIMARY KEY, " +
                 KEY_CATEGORY_COLOR + " INTEGER, " +
                 "isCollapsed INTEGER)";
@@ -79,6 +80,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 KEY_WEIGHT_REPS_DAILY + " TEXT, " +
                 KEY_DURATIONS_DAILY + " TEXT, " +
                 KEY_DONE_TIME + " INTEGER, " +
+                "exerciseColour INTEGER, " + // Add exerciseColour column
                 "PRIMARY KEY (" + KEY_DATE + ", " + KEY_EXERCISE_NAME_DAILY + "))";
         db.execSQL(CREATE_DAILY_ACTIVITY_TABLE);
         // HERE
@@ -104,11 +106,14 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                     "PRIMARY KEY (" + KEY_DATE + ", " + KEY_EXERCISE_NAME_DAILY + "))";
             db.execSQL(CREATE_DAILY_ACTIVITY_TABLE);
         }
+        if (oldVersion < 6) {
+            db.execSQL("ALTER TABLE " + TABLE_DAILY_ACTIVITY + " ADD COLUMN exerciseColour INTEGER");
+        }
     }
 
     // Methods to save and load daily exercises
 
-    public void saveDailyActivity(String date, Exercise exercise, String categoryName) {
+    public void saveDailyActivity(String date, Exercise exercise, String categoryName, int categoryClr) {
         SQLiteDatabase db = getWritableDatabase();
         ContentValues values = new ContentValues();
         values.put(KEY_DATE, date);
@@ -118,7 +123,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         values.put(KEY_WEIGHT_REPS_DAILY, new JSONArray(exercise.getWeightReps()).toString());
         values.put(KEY_DURATIONS_DAILY, new JSONArray(exercise.getDurations()).toString());
         values.put(KEY_DONE_TIME, exercise.getDoneTime());
-
+        values.put("exerciseColour", categoryClr);
         db.insertWithOnConflict(TABLE_DAILY_ACTIVITY, null, values, SQLiteDatabase.CONFLICT_REPLACE);
     }
 
@@ -145,16 +150,20 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 String weightRepsJson = cursor.getString(cursor.getColumnIndexOrThrow(KEY_WEIGHT_REPS_DAILY));
                 String durationsJson = cursor.getString(cursor.getColumnIndexOrThrow(KEY_DURATIONS_DAILY));
                 long doneTime = cursor.getLong(cursor.getColumnIndexOrThrow(KEY_DONE_TIME));
+                int categoryClr = cursor.getInt(cursor.getColumnIndexOrThrow("exerciseColour"));
+
 
                 List<int[]> weightReps = parseWeightRepsFromJson(weightRepsJson);
                 List<Integer> durations = parseDurationsFromJson(durationsJson);
 
-                Category category = getCategoryByName(categoryName);
+//                Category category = null;
 
-                Exercise exercise = new Exercise(exerciseName, category, setType);
+                Exercise exercise = new Exercise(exerciseName, null, setType);
                 exercise.setWeightReps(weightReps);
                 exercise.setDurations(durations);
                 exercise.setDoneTime(doneTime);
+                exercise.setCategoryClr(categoryClr);
+                exercise.setCategoryName(categoryName);
 
                 dailyExercises.add(exercise);
             } while (cursor.moveToNext());
@@ -190,6 +199,8 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     public void saveDataToDatabase(Map<String, Category> categoryMap) {
         SQLiteDatabase db = getWritableDatabase();
         db.beginTransaction();
+        Log.e("DatabaseHelper1", "Attempt Save");
+        Log.e("myTag5", "Oh No");
 
         try {
             // Clear existing data
@@ -200,12 +211,20 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 String categoryName = entry.getKey();
                 Category category = entry.getValue();
 
+                Log.e("DatabaseHelper1", "Category: " + category.getName() + " Colour: " + category.getColor());
+
                 // Insert into Category table
                 ContentValues categoryValues = new ContentValues();
                 categoryValues.put(KEY_CATEGORY_NAME, category.getName());
                 categoryValues.put(KEY_CATEGORY_COLOR, category.getColor());
                 categoryValues.put("isCollapsed", category.getIsCollapsed() ? 1 : 0); // Save isCollapsed
-                db.insert(TABLE_CATEGORY, null, categoryValues);
+                long result = db.insert(TABLE_CATEGORY, null, categoryValues);
+
+                if (result == -1) {
+                    Log.e("DatabaseHelper2", "Failed to insert into Category table: " + category.getName());
+                } else {
+                    Log.e("DatabaseHelper2", "Inserted: " + category.getName());
+                }
 
                 // Insert into Exercise table
                 for (Exercise exercise : category.getExercises()) {
