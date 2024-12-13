@@ -14,6 +14,8 @@ public class Exercise {
     private List<Integer> durations; // List of durations
     private String exerciseNotes;
     private long doneTime;
+    private int timerMins;
+    private int timerSecs;
 
     public Exercise(String name, Category category, String setType) {
         this.name = name;
@@ -26,6 +28,8 @@ public class Exercise {
         this.doneToday = false;
         this.exerciseNotes = "";
         this.doneTime = 0;
+        this.timerMins = 3;
+        this.timerSecs = 0;
     }
 
     public String getName() {
@@ -42,6 +46,22 @@ public class Exercise {
 
     public void setCategoryName(String categoryName) {
         this.categoryName = categoryName;
+    }
+
+    public int getTimerMins(){
+        return this.timerMins;
+    }
+
+    public int getTimerSecs(){
+        return this.timerSecs;
+    }
+
+    public void setTimerMins(int timerMins){
+        this.timerMins = timerMins;
+    }
+
+    public void setTimerSecs(int timerSecs){
+        this.timerSecs = timerSecs;
     }
 
     public int getCategoryClr() {

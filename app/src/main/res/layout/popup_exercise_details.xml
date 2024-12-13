@@ -9,48 +9,48 @@
 
     <!-- Header Area -->
     <LinearLayout
-    android:id="@+id/header"
-    android:orientation="horizontal"
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:padding="16dp"
+        android:id="@+id/header"
+        android:orientation="horizontal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="16dp"
         android:gravity="center_vertical"
         android:elevation="4dp">
 
         <LinearLayout
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_weight="1"
-        android:orientation="vertical">
-
-        <TextView
-            android:id="@+id/exercise_name"
-            android:layout_width="wrap_content"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:text="Exercise Name"
-            android:textSize="20sp"
-            android:textStyle="bold"
-            android:textColor="#444444" />
+            android:layout_weight="1"
+            android:orientation="vertical">
 
-        <TextView
-            android:id="@+id/category_name"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Category Name"
-            android:textSize="16sp"
-            android:textColor="#444444" />
+            <TextView
+                android:id="@+id/exercise_name"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Exercise Name"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:textColor="#444444" />
+
+            <TextView
+                android:id="@+id/category_name"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Category Name"
+                android:textSize="16sp"
+                android:textColor="#444444" />
         </LinearLayout>
 
-            <!-- Close Button -->
+        <!-- Close Button -->
         <ImageView
-        android:id="@+id/close_button"
-        android:layout_width="32dp"
-        android:layout_height="32dp"
-        android:src="@android:drawable/ic_menu_close_clear_cancel"
-        android:padding="8dp"
-        android:contentDescription="Close"
-        android:tint="#444444" />
-            </LinearLayout>
+            android:id="@+id/close_button"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:src="@android:drawable/ic_menu_close_clear_cancel"
+            android:padding="8dp"
+            android:contentDescription="Close"
+            android:tint="#444444" />
+    </LinearLayout>
 
     <!-- Table -->
     <TableLayout
@@ -86,14 +86,14 @@
     <ScrollView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="16dp">
+        android:layout_marginTop="16dp"
+        android:layout_weight="1">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical">
 
-            <!-- Add your content here -->
             <TextView
                 android:id="@+id/content_text"
                 android:layout_width="match_parent"
@@ -105,7 +105,7 @@
             <EditText
                 android:id="@+id/notes_field"
                 android:layout_width="match_parent"
-                android:layout_height="261dp"
+                android:layout_height="wrap_content"
                 android:background="?attr/colorOnPrimary"
                 android:gravity="top"
                 android:hint="Type your notes here..."
@@ -116,4 +116,134 @@
         </LinearLayout>
     </ScrollView>
 
+    <!-- Timer Section -->
+    <LinearLayout
+        android:id="@+id/timer_layout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <LinearLayout
+            android:id="@+id/timer_setup"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_horizontal">
+
+            <!-- Container for Minutes -->
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gravity="center_horizontal"
+                android:layout_marginEnd="8dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Minutes"
+                    android:textColor="@color/white"
+                    android:textStyle="bold"
+                    android:gravity="center"
+                    android:textSize="16sp" />
+
+                <NumberPicker
+                    android:id="@+id/minute_picker"
+                    android:layout_width="wrap_content"
+                    android:layout_height="120dp"
+                    android:textSize="16sp"
+                    android:scaleY="0.9"
+                    android:scaleX="0.9"
+                    android:padding="4dp"/>
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gravity="center_horizontal"
+                android:layout_marginEnd="0dp"
+                android:layout_marginStart="0dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text=" "
+                    android:textColor="@color/white"
+                    android:textStyle="bold"
+                    android:gravity="center"
+                    android:textSize="16sp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:text=":"
+                    android:textColor="@color/white"
+                    android:textSize="24sp"
+                    android:layout_marginTop="40dp"/>
+            </LinearLayout>
+
+            <!-- Container for Seconds -->
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gravity="center_horizontal"
+                android:layout_marginStart="8dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Seconds"
+                    android:textColor="@color/white"
+                    android:textStyle="bold"
+                    android:gravity="center"
+                    android:textSize="16sp" />
+
+                <NumberPicker
+                    android:id="@+id/second_picker"
+                    android:layout_width="wrap_content"
+                    android:layout_height="120dp"
+                    android:textSize="16sp"
+                    android:scaleY="0.9"
+                    android:scaleX="0.9"
+                    android:padding="4dp"/>
+            </LinearLayout>
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/button_section"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_horizontal"
+            android:layout_marginTop="16dp">
+
+            <Button
+                android:id="@+id/start_button"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Start"
+                android:layout_marginEnd="2dp" />
+
+            <Button
+                android:id="@+id/pause_button"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Pause"
+                android:layout_marginEnd="2dp"
+                android:layout_marginStart="2dp" />
+
+            <Button
+                android:id="@+id/restart_button"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Reset"
+                android:layout_marginStart="2dp" />
+
+        </LinearLayout>
+    </LinearLayout>
 </LinearLayout>

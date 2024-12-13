@@ -1,5 +1,6 @@
 package com.test.bravo.ui.home;
 
+import com.test.bravo.services.TimerService;
 import com.test.bravo.ui.home.DateSelector.*;
 
 import java.io.BufferedReader;
@@ -26,12 +27,17 @@ import androidx.core.view.MenuProvider;
 
 import android.app.DatePickerDialog;
 import android.content.Context;
+import android.content.Intent;
 import android.content.res.Configuration;
 import android.graphics.Color;
 import android.graphics.PorterDuff;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
+import android.os.Build;
 import android.os.Bundle;
+import android.os.CountDownTimer;
+import android.os.VibrationEffect;
+import android.os.Vibrator;
 import android.text.Editable;
 import android.text.InputFilter;
 import android.text.InputType;
@@ -69,6 +75,9 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.constraintlayout.widget.ConstraintLayout;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
+import androidx.work.Constraints;
+import androidx.work.OneTimeWorkRequest;
+import androidx.work.WorkManager;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -83,6 +92,7 @@ import java.util.Calendar;
 import com.test.bravo.R;
 
 import com.test.bravo.databinding.FragmentHomeBinding;
+import com.test.bravo.workers.TimerWorker;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -1233,6 +1243,185 @@ public class HomeFragment extends Fragment {
         // Inflate the custom layout
         LayoutInflater inflater = LayoutInflater.from(getContext());
         View popupView = inflater.inflate(R.layout.popup_exercise_details, null);
+
+        // Timer stuff
+        // Timer initialization
+        NumberPicker minutePicker = popupView.findViewById(R.id.minute_picker);
+        NumberPicker secondPicker = popupView.findViewById(R.id.second_picker);
+        Button startButton = popupView.findViewById(R.id.start_button);
+        Button pauseButton = popupView.findViewById(R.id.pause_button);
+        Button restartButton = popupView.findViewById(R.id.restart_button);
+        LinearLayout timerSetupLayout = popupView.findViewById(R.id.timer_setup);
+        LinearLayout timerLayout = popupView.findViewById(R.id.timer_layout);
+
+        minutePicker.setMinValue(0);
+        minutePicker.setMaxValue(59);
+        secondPicker.setMinValue(0);
+        secondPicker.setMaxValue(59);
+
+        NumberPicker.Formatter formatter = value -> String.format("%02d", value);
+        minutePicker.setFormatter(formatter);
+        secondPicker.setFormatter(formatter);
+
+        minutePicker.setValue(exercise.getTimerMins());
+        secondPicker.setValue(exercise.getTimerSecs());
+
+        minutePicker.setOnValueChangedListener((picker, oldVal, newVal) -> {
+            exercise.setTimerMins(newVal); // Update timerMins in the exercise object
+        });
+
+        secondPicker.setOnValueChangedListener((picker, oldVal, newVal) -> {
+            exercise.setTimerSecs(newVal); // Update timerSecs in the exercise object
+        });
+
+        // Timer logic
+
+        TextView countdownTextView = new TextView(getContext());
+        countdownTextView.setTextSize(24);
+        countdownTextView.setTextColor(ContextCompat.getColor(getContext(), R.color.white));
+        countdownTextView.setGravity(Gravity.CENTER_HORIZONTAL);
+
+        final long[] remainingTime = {minutePicker.getValue() * 60 + secondPicker.getValue()};
+
+        final boolean[] isTimerRunning = {false};
+        final boolean[] isTimerPaused = {false};
+        CountDownTimer[] timer = {null};
+
+        // Start Button
+        startButton.setOnClickListener(v -> {
+
+            boolean isTimerSetupActive = timerSetupLayout.isAttachedToWindow();
+            boolean isCountdownActive = countdownTextView.isAttachedToWindow();
+
+            if (isTimerSetupActive) {
+                if (timer[0] == null) {
+                    // Replace timerSetupLayout with countdownTextView
+                    timerLayout.removeView(timerSetupLayout);
+                    timerLayout.addView(countdownTextView, 0);
+                    remainingTime[0] = exercise.getTimerMins() * 60 + exercise.getTimerSecs();
+
+                    // Initialize timer
+                    timer[0] = new CountDownTimer(remainingTime[0] * 1000, 1000) {
+                        @Override
+                        public void onTick(long millisUntilFinished) {
+                            remainingTime[0] = millisUntilFinished / 1000;
+                            int minutes = (int) (remainingTime[0] / 60);
+                            int seconds = (int) (remainingTime[0] % 60);
+                            countdownTextView.setText(String.format("%02d:%02d", minutes, seconds));
+                        }
+
+                        @Override
+                        public void onFinish() {
+                            countdownTextView.setText("00:00");
+                            Toast.makeText(getContext(), "Timer Finished!", Toast.LENGTH_SHORT).show();
+                            isTimerRunning[0] = false;
+                            timer[0] = null;
+
+                            // Start the TimerService for vibration and notification
+//                            Intent serviceIntent = new Intent(getContext(), TimerService.class);
+//                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+//                                getContext().startForegroundService(serviceIntent);
+//                            } else {
+//                                getContext().startService(serviceIntent);
+//                            }
+                            Constraints constraints = new Constraints.Builder()
+                                    .setRequiresBatteryNotLow(true)
+                                    .setRequiresDeviceIdle(false)
+                                    .build();
+
+                            OneTimeWorkRequest timerWorkRequest = new OneTimeWorkRequest.Builder(TimerWorker.class)
+                                    .setConstraints(constraints)
+                                    .build();
+
+                            WorkManager.getInstance(getContext()).enqueue(timerWorkRequest);
+                        }
+                    };
+                    timer[0].start();
+                    isTimerRunning[0] = true;
+                }
+            } else {
+
+                if (isTimerPaused[0]) {
+                    isTimerPaused[0] = false;
+
+                    timer[0] = new CountDownTimer(remainingTime[0] * 1000, 1000) {
+                        @Override
+                        public void onTick(long millisUntilFinished) {
+                            remainingTime[0] = millisUntilFinished / 1000;
+                            int minutes = (int) (remainingTime[0] / 60);
+                            int seconds = (int) (remainingTime[0] % 60);
+                            countdownTextView.setText(String.format("%02d:%02d", minutes, seconds));
+                        }
+
+                        @Override
+                        public void onFinish() {
+                            countdownTextView.setText("00:00");
+                            Toast.makeText(getContext(), "Timer Finished!", Toast.LENGTH_SHORT).show();
+                            isTimerRunning[0] = false;
+                            timer[0] = null;
+
+                            Vibrator vibrator = (Vibrator) getContext().getSystemService(Context.VIBRATOR_SERVICE);
+                            if (vibrator != null && vibrator.hasVibrator()) {
+                                long[] vibrationPattern = {0, 500, 250, 500, 250, 500, 250, 500}; // Off, vibrate, pause, vibrate, pause, vibrate
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                                    vibrator.vibrate(VibrationEffect.createWaveform(vibrationPattern, -1)); // -1 means no repeat
+                                }
+                            }
+                        }
+                    };
+
+                    timer[0].start();
+                    isTimerRunning[0] = true;
+                }
+            }
+        });
+
+        // Pause Button
+        pauseButton.setOnClickListener(v -> {
+            if (isTimerRunning[0] && timer[0] != null) {
+                timer[0].cancel();
+                timer[0] = null;
+                isTimerRunning[0] = false;
+                isTimerPaused[0] = true;
+            }
+        });
+
+        // Restart Button
+        restartButton.setOnClickListener(v -> {
+            boolean isTimerSetupActive = timerSetupLayout.isAttachedToWindow();
+            boolean isCountdownActive = countdownTextView.isAttachedToWindow();
+
+            if (isCountdownActive) {
+
+                if (timer[0] != null) {
+                    timer[0].cancel();
+                    timer[0] = null;
+                    isTimerRunning[0] = false;
+                    isTimerPaused[0] = false;
+                }
+
+                timerLayout.removeView(countdownTextView);
+                timerLayout.addView(timerSetupLayout, 0);
+
+                // Reset pickers and timer state
+                remainingTime[0] = exercise.getTimerMins() * 60 + exercise.getTimerSecs();
+            }
+
+//            if (isCountdownActive && (isTimerPaused[0] || isTimerRunning[0])) {
+//                // Reset timerSetupLayout
+//                timerLayout.removeView(countdownTextView);
+//                timerLayout.addView(timerSetupLayout, 0);
+//
+//                // Reset pickers and timer state
+//                remainingTime[0] = exercise.getTimerMins() * 60 + exercise.getTimerSecs();
+//            }
+
+            if (isTimerSetupActive) {
+                // If timerSetupLayout is already active, just reset the pickers
+                remainingTime[0] = exercise.getTimerMins() * 60 + exercise.getTimerSecs();
+            }
+        });
+
 
         // Get references to views in the layout
         LinearLayout header = popupView.findViewById(R.id.header);
