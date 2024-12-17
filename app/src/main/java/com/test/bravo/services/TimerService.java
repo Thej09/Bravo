@@ -7,14 +7,19 @@ import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Build;
+import android.os.CountDownTimer;
 import android.os.IBinder;
+import android.widget.Toast;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
 
-import com.test.bravo.R;
+import androidx.annotation.Nullable;
+import androidx.core.app.NotificationCompat;
 
+import com.test.bravo.R;
 public class TimerService extends Service {
-    private static final String CHANNEL_ID = "TimerServiceChannel";
+    private CountDownTimer timer;
+    private long remainingTime;
 
     @Override
     public void onCreate() {
@@ -24,52 +29,82 @@ public class TimerService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        // Start the service in the foreground
-        startForeground(1, createNotification());
+        remainingTime = intent.getLongExtra("timeInSeconds", 0) * 1000;
 
-        // Vibrate 3 times
-        long[] vibrationPattern = {0, 500, 250, 500, 250, 500};
-        Vibrator vibrator = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
+        // Start the service as a foreground service
+        startForeground(1, createNotification("Timer started"));
 
-        if (vibrator != null && vibrator.hasVibrator()) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                vibrator.vibrate(VibrationEffect.createWaveform(vibrationPattern, -1)); // -1 means no repeat
+        // Initialize and start the timer
+        timer = new CountDownTimer(remainingTime, 1000) {
+            @Override
+            public void onTick(long millisUntilFinished) {
+                remainingTime = millisUntilFinished;
+                int minutes = (int) ((remainingTime/ 1000) / 60);
+                int seconds = (int) ((remainingTime / 1000) % 60);
+                String formattedTime = String.format("%02d:%02d", minutes, seconds);
+                updateNotification(String.valueOf(formattedTime));
             }
-        }
 
-        // Stop the service after executing the task
-        stopSelf();
+            @Override
+            public void onFinish() {
+                // Cancel the notification
+                NotificationManager notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+                if (notificationManager != null) {
+                    notificationManager.cancel(1); // Use the same notification ID
+                }
+
+                // Stop the service when the timer finishes
+                stopSelf();
+            }
+        };
+        timer.start();
+
         return START_NOT_STICKY;
     }
 
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        if (timer != null) {
+            timer.cancel();
+        }
+    }
+
+    @Nullable
     @Override
     public IBinder onBind(Intent intent) {
         return null;
     }
 
+    private Notification createNotification(String contentText) {
+        return new NotificationCompat.Builder(this, "timer_channel")
+                .setContentTitle("Bravo: set timer")
+                .setContentText(contentText)
+                .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
+                .setPriority(NotificationCompat.PRIORITY_LOW)
+                .setOngoing(true) // Persistent notification
+                .build();
+    }
+
+    private void updateNotification(String contentText) {
+        NotificationManager notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        Notification notification = createNotification(contentText);
+        if (notificationManager != null) {
+            notificationManager.notify(1, notification);
+        }
+    }
+
     private void createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationChannel channel = new NotificationChannel(
-                    CHANNEL_ID,
-                    "Timer Service Channel",
+                    "timer_channel",
+                    "Timer Notifications",
                     NotificationManager.IMPORTANCE_LOW
             );
             NotificationManager manager = getSystemService(NotificationManager.class);
             if (manager != null) {
                 manager.createNotificationChannel(channel);
             }
-        }
-    }
-
-    private Notification createNotification() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            return new Notification.Builder(this, CHANNEL_ID)
-                    .setContentTitle("Timer Running")
-                    .setContentText("Your timer is running.")
-                    .setSmallIcon(android.R.drawable.ic_lock_idle_alarm) // Use the built-in timer-like icon
-                    .build();
-        } else {
-            return null;
         }
     }
 }

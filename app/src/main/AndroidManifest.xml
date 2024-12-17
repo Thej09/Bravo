@@ -3,9 +3,10 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <!-- Permissions -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
 
 
     <application
@@ -29,9 +30,10 @@
             </intent-filter>
         </activity>
 
+        <receiver android:name="com.test.bravo.services.TimerReceiver" />
+
         <service
-            android:name="androidx.work.impl.foreground.SystemForegroundService"
-            android:permission="android.permission.FOREGROUND_SERVICE"
+            android:name="com.test.bravo.services.TimerService"
             android:exported="false"
             android:foregroundServiceType="shortService" />
 

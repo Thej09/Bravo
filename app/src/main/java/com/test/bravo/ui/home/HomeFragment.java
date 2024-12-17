@@ -1,5 +1,6 @@
 package com.test.bravo.ui.home;
 
+import com.test.bravo.services.TimerReceiver;
 import com.test.bravo.services.TimerService;
 import com.test.bravo.ui.home.DateSelector.*;
 
@@ -18,8 +19,18 @@ import com.test.bravo.model.Category;
 import com.test.bravo.model.Exercise;
 import com.test.bravo.database.DatabaseHelper;
 
+import android.app.AlarmManager;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
+import android.media.Ringtone;
+import android.media.RingtoneManager;
+import android.net.Uri;
+
+
 import androidx.annotation.Nullable;
 import androidx.appcompat.widget.Toolbar;
+import androidx.core.app.NotificationCompat;
 import androidx.core.content.ContextCompat;
 import androidx.core.content.res.ResourcesCompat;
 import androidx.lifecycle.Lifecycle;
@@ -33,11 +44,13 @@ import android.graphics.Color;
 import android.graphics.PorterDuff;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
+import android.media.MediaPlayer;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.CountDownTimer;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
+import android.provider.Settings;
 import android.text.Editable;
 import android.text.InputFilter;
 import android.text.InputType;
@@ -75,9 +88,6 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.constraintlayout.widget.ConstraintLayout;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
-import androidx.work.Constraints;
-import androidx.work.OneTimeWorkRequest;
-import androidx.work.WorkManager;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -92,7 +102,6 @@ import java.util.Calendar;
 import com.test.bravo.R;
 
 import com.test.bravo.databinding.FragmentHomeBinding;
-import com.test.bravo.workers.TimerWorker;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -101,6 +110,9 @@ import org.json.JSONObject;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import android.media.AudioAttributes;
+import android.media.AudioManager;
+import android.media.MediaPlayer;
 
 
 public class HomeFragment extends Fragment {
@@ -1249,8 +1261,6 @@ public class HomeFragment extends Fragment {
         NumberPicker minutePicker = popupView.findViewById(R.id.minute_picker);
         NumberPicker secondPicker = popupView.findViewById(R.id.second_picker);
         Button startButton = popupView.findViewById(R.id.start_button);
-        Button pauseButton = popupView.findViewById(R.id.pause_button);
-        Button restartButton = popupView.findViewById(R.id.restart_button);
         LinearLayout timerSetupLayout = popupView.findViewById(R.id.timer_setup);
         LinearLayout timerLayout = popupView.findViewById(R.id.timer_layout);
 
@@ -1274,7 +1284,7 @@ public class HomeFragment extends Fragment {
             exercise.setTimerSecs(newVal); // Update timerSecs in the exercise object
         });
 
-        // Timer logic
+        // Timer logic v2:
 
         TextView countdownTextView = new TextView(getContext());
         countdownTextView.setTextSize(24);
@@ -1287,20 +1297,43 @@ public class HomeFragment extends Fragment {
         final boolean[] isTimerPaused = {false};
         CountDownTimer[] timer = {null};
 
-        // Start Button
         startButton.setOnClickListener(v -> {
 
             boolean isTimerSetupActive = timerSetupLayout.isAttachedToWindow();
-            boolean isCountdownActive = countdownTextView.isAttachedToWindow();
+
+            // Stop any existing timer
+            if (timer[0] != null) {
+                timer[0].cancel();
+                timer[0] = null;
+                isTimerRunning[0] = false;
+            }
+
+            // Stop the foreground service
+            Intent stopServiceIntent = new Intent(getContext(), TimerService.class);
+            getContext().stopService(stopServiceIntent);
+
+
+            NotificationManager notificationManager = (NotificationManager) getContext().getSystemService(Context.NOTIFICATION_SERVICE);
+            if (notificationManager != null) {
+                notificationManager.cancel(1); // Use the same ID as in the TimerService
+            }
 
             if (isTimerSetupActive) {
+
+
                 if (timer[0] == null) {
                     // Replace timerSetupLayout with countdownTextView
                     timerLayout.removeView(timerSetupLayout);
                     timerLayout.addView(countdownTextView, 0);
                     remainingTime[0] = exercise.getTimerMins() * 60 + exercise.getTimerSecs();
+                    startButton.setText("Reset");
 
-                    // Initialize timer
+                    // Start the TimerService as a foreground service
+                    Intent serviceIntent = new Intent(getContext(), TimerService.class);
+                    serviceIntent.putExtra("timeInSeconds", remainingTime[0]);
+                    ContextCompat.startForegroundService(getContext(), serviceIntent);
+
+                    // Initialize and start CountDownTimer for UI updates
                     timer[0] = new CountDownTimer(remainingTime[0] * 1000, 1000) {
                         @Override
                         public void onTick(long millisUntilFinished) {
@@ -1317,108 +1350,50 @@ public class HomeFragment extends Fragment {
                             isTimerRunning[0] = false;
                             timer[0] = null;
 
-                            // Start the TimerService for vibration and notification
-//                            Intent serviceIntent = new Intent(getContext(), TimerService.class);
-//                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-//                                getContext().startForegroundService(serviceIntent);
-//                            } else {
-//                                getContext().startService(serviceIntent);
-//                            }
-                            Constraints constraints = new Constraints.Builder()
-                                    .setRequiresBatteryNotLow(true)
-                                    .setRequiresDeviceIdle(false)
-                                    .build();
+                            NotificationManager notificationManager = (NotificationManager) getContext().getSystemService(Context.NOTIFICATION_SERVICE);
+                            if (notificationManager != null) {
+                                notificationManager.cancel(1);
+                            }
 
-                            OneTimeWorkRequest timerWorkRequest = new OneTimeWorkRequest.Builder(TimerWorker.class)
-                                    .setConstraints(constraints)
-                                    .build();
+                            // Stop the foreground service
+                            Intent stopServiceIntent = new Intent(getContext(), TimerService.class);
+                            getContext().stopService(stopServiceIntent);
 
-                            WorkManager.getInstance(getContext()).enqueue(timerWorkRequest);
+                            // Play sound even when the phone is in silent or vibrate mode
+                            MediaPlayer mediaPlayer = MediaPlayer.create(getContext(), R.raw.ringer_sound); // Replace with your sound file in res/raw folder
+                            if (mediaPlayer != null) {
+                                AudioManager audioManager = (AudioManager) getContext().getSystemService(Context.AUDIO_SERVICE);
+
+                                // Check the current audio mode and force alarm stream
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                                    mediaPlayer.setAudioAttributes(
+                                            new AudioAttributes.Builder()
+                                                    .setUsage(AudioAttributes.USAGE_ALARM) // Set usage to alarm
+                                                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                                                    .build()
+                                    );
+                                } else {
+                                    mediaPlayer.setAudioStreamType(AudioManager.STREAM_ALARM); // Fallback for older versions
+                                }
+
+                                // Start playing the sound
+                                mediaPlayer.setOnCompletionListener(MediaPlayer::release); // Release resources after playback
+                                mediaPlayer.start();
+                            }
                         }
                     };
                     timer[0].start();
                     isTimerRunning[0] = true;
                 }
             } else {
-
-                if (isTimerPaused[0]) {
-                    isTimerPaused[0] = false;
-
-                    timer[0] = new CountDownTimer(remainingTime[0] * 1000, 1000) {
-                        @Override
-                        public void onTick(long millisUntilFinished) {
-                            remainingTime[0] = millisUntilFinished / 1000;
-                            int minutes = (int) (remainingTime[0] / 60);
-                            int seconds = (int) (remainingTime[0] % 60);
-                            countdownTextView.setText(String.format("%02d:%02d", minutes, seconds));
-                        }
-
-                        @Override
-                        public void onFinish() {
-                            countdownTextView.setText("00:00");
-                            Toast.makeText(getContext(), "Timer Finished!", Toast.LENGTH_SHORT).show();
-                            isTimerRunning[0] = false;
-                            timer[0] = null;
-
-                            Vibrator vibrator = (Vibrator) getContext().getSystemService(Context.VIBRATOR_SERVICE);
-                            if (vibrator != null && vibrator.hasVibrator()) {
-                                long[] vibrationPattern = {0, 500, 250, 500, 250, 500, 250, 500}; // Off, vibrate, pause, vibrate, pause, vibrate
-                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                                    vibrator.vibrate(VibrationEffect.createWaveform(vibrationPattern, -1)); // -1 means no repeat
-                                }
-                            }
-                        }
-                    };
-
-                    timer[0].start();
-                    isTimerRunning[0] = true;
-                }
-            }
-        });
-
-        // Pause Button
-        pauseButton.setOnClickListener(v -> {
-            if (isTimerRunning[0] && timer[0] != null) {
-                timer[0].cancel();
-                timer[0] = null;
-                isTimerRunning[0] = false;
-                isTimerPaused[0] = true;
-            }
-        });
-
-        // Restart Button
-        restartButton.setOnClickListener(v -> {
-            boolean isTimerSetupActive = timerSetupLayout.isAttachedToWindow();
-            boolean isCountdownActive = countdownTextView.isAttachedToWindow();
-
-            if (isCountdownActive) {
-
-                if (timer[0] != null) {
-                    timer[0].cancel();
-                    timer[0] = null;
-                    isTimerRunning[0] = false;
-                    isTimerPaused[0] = false;
-                }
-
+                // Remove countdownTextView and show the timer setup layout
                 timerLayout.removeView(countdownTextView);
                 timerLayout.addView(timerSetupLayout, 0);
 
-                // Reset pickers and timer state
+                // Reset the remaining time and button text
                 remainingTime[0] = exercise.getTimerMins() * 60 + exercise.getTimerSecs();
-            }
+                startButton.setText("Start");
 
-//            if (isCountdownActive && (isTimerPaused[0] || isTimerRunning[0])) {
-//                // Reset timerSetupLayout
-//                timerLayout.removeView(countdownTextView);
-//                timerLayout.addView(timerSetupLayout, 0);
-//
-//                // Reset pickers and timer state
-//                remainingTime[0] = exercise.getTimerMins() * 60 + exercise.getTimerSecs();
-//            }
-
-            if (isTimerSetupActive) {
-                // If timerSetupLayout is already active, just reset the pickers
-                remainingTime[0] = exercise.getTimerMins() * 60 + exercise.getTimerSecs();
             }
         });
 
@@ -1498,15 +1473,73 @@ public class HomeFragment extends Fragment {
 
             dialog.dismiss();
 
+            stopTimerAndNotification(timer, isTimerRunning);
+
             // Refresh the exerciseContainer to reflect updated values
             LinearLayout parentCategoryLayout = (LinearLayout) categoryContainer.findViewWithTag(categoryName);
             LinearLayout exerciseContainer = parentCategoryLayout.findViewWithTag(exercise.getName());
             refreshExerciseContainer(exerciseContainer, exercise, categoryColor);
         });
 
+// Ensure the timer and notification are stopped if the dialog is dismissed by clicking outside
+        dialog.setOnDismissListener(dialogInterface -> {
+            stopTimerAndNotification(timer, isTimerRunning);
+        });
+
         // Show the dialog
         dialog.show();
     }
+
+    private void stopTimerAndNotification(CountDownTimer[] timer, final boolean[] isTimerRunning) {
+        // Cancel the CountDownTimer if it's running
+        if (timer[0] != null) {
+            timer[0].cancel();
+            timer[0] = null;
+            isTimerRunning[0] = false;
+        }
+
+        // Cancel the notification
+        NotificationManager notificationManager = (NotificationManager) getContext().getSystemService(Context.NOTIFICATION_SERVICE);
+        if (notificationManager != null) {
+            notificationManager.cancel(1); // Use the same ID as in TimerService
+        }
+
+        // Stop the foreground service
+        Intent stopServiceIntent = new Intent(getContext(), TimerService.class);
+        getContext().stopService(stopServiceIntent);
+    }
+
+    private void createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            NotificationChannel channel = new NotificationChannel(
+                    "timer_channel",
+                    "Timer Notifications",
+                    NotificationManager.IMPORTANCE_LOW
+            );
+            channel.setDescription("Shows the remaining timer countdown");
+            NotificationManager notificationManager = getContext().getSystemService(NotificationManager.class);
+            if (notificationManager != null) {
+                notificationManager.createNotificationChannel(channel);
+            }
+        }
+    }
+
+    private void updateNotification(String timeRemaining) {
+        NotificationManager notificationManager = (NotificationManager) getContext().getSystemService(Context.NOTIFICATION_SERVICE);
+
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(getContext(), "timer_channel")
+                .setSmallIcon(android.R.drawable.ic_lock_idle_alarm) // Replace with your timer icon
+                .setContentTitle("Timer Running")
+                .setContentText("Remaining Time: " + timeRemaining)
+                .setPriority(NotificationCompat.PRIORITY_LOW)
+                .setOngoing(true); // Makes the notification non-dismissible
+
+        if (notificationManager != null) {
+            notificationManager.notify(1, builder.build());
+        }
+    }
+
+
 
     private void initializeTable(TableLayout tableLayout, String setType, int columnCount, Exercise exercise) {
         // Clear the existing table contents
