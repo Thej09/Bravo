@@ -1,5 +1,6 @@
 <ScrollView
     xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
@@ -9,20 +10,56 @@
         android:orientation="vertical"
         android:padding="3dp">
 
-        <!-- Title for the month -->
-        <TextView
-            android:id="@+id/month_title"
+        <!-- Title for the month with arrows -->
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="December 2024"
-            android:textSize="20sp"
-            android:gravity="start"
-            android:textColor="@color/purple_500"
-            android:paddingTop="2dp"
-            android:paddingRight="2dp"
-            android:paddingLeft="2dp"
-            android:paddingBottom="0dp"/>
+            android:orientation="horizontal"
+            android:padding="0dp"
+            android:gravity="center_vertical">
 
+            <!-- Month Title -->
+            <TextView
+                android:id="@+id/month_title"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="December 2024"
+                android:textSize="20sp"
+                android:gravity="start"
+                android:textColor="@color/purple_500"
+                android:padding="4dp" />
+
+            <!-- Arrows Container -->
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <!-- Left Arrow -->
+                <ImageView
+                    android:id="@+id/left_arrow"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:src="@android:drawable/arrow_down_float"
+                    android:contentDescription="Previous Month"
+                    android:padding="8dp"
+                    app:tint="@color/purple_500" />
+
+                <!-- Right Arrow -->
+                <ImageView
+                    android:id="@+id/right_arrow"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:src="@android:drawable/arrow_down_float"
+                    android:contentDescription="Next Month"
+                    android:padding="8dp"
+                    app:tint="@color/purple_500" />
+
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- Calendar Grid -->
         <GridLayout
             android:id="@+id/calendar_grid"
             android:layout_width="match_parent"

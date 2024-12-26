@@ -82,7 +82,7 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
-    <!-- Container for Categories -->
+    <!-- Container for Categories and Exercises -->
     <ScrollView
         android:id="@+id/category_scroll_view"
         android:layout_width="0dp"
@@ -93,21 +93,62 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
+        <!-- Parent LinearLayout for Exercises To Do and Categories -->
         <LinearLayout
-            android:id="@+id/category_container"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical">
 
-            <!-- Create New Category Button -->
-            <Button
-                android:id="@+id/create_category_button"
-                android:layout_width="wrap_content"
+            <!-- Exercises To Do Section -->
+            <LinearLayout
+                android:id="@+id/exercises_todo"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_gravity="center_horizontal"
-                android:layout_marginTop="16dp"
-                android:layout_marginBottom="64dp"
-                android:text="Create New Category" />
+                android:orientation="vertical"
+                android:padding="0dp"
+                android:layout_marginTop="0dp">
+
+                <!-- Title TextView -->
+                <TextView
+                    android:id="@+id/todays_exercises_title"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Today's Exercises"
+                    android:textSize="18sp"
+                    android:textColor="?attr/colorPrimary"
+                    android:paddingStart="12dp"
+                    android:paddingTop="0dp" />
+
+                <TextView
+                    android:id="@+id/all_exercise_title"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="All Exercises"
+                    android:textSize="18sp"
+                    android:textColor="?attr/colorPrimary"
+                    android:paddingStart="12dp"
+                    android:paddingTop="20dp" />
+
+            </LinearLayout>
+
+            <!-- Categories Section -->
+            <LinearLayout
+                android:id="@+id/category_container"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:layout_marginTop="8dp">
+
+                <!-- Create New Category Button -->
+                <Button
+                    android:id="@+id/create_category_button"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center_horizontal"
+                    android:layout_marginTop="16dp"
+                    android:layout_marginBottom="64dp"
+                    android:text="Create New Category" />
+            </LinearLayout>
 
         </LinearLayout>
     </ScrollView>

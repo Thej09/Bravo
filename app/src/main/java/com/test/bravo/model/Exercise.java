@@ -10,10 +10,12 @@ public class Exercise {
     private int categoryClr;
     private String setType;
     private boolean doneToday;
+    private boolean completed;
     private List<int[]> weightReps; // List of pairs (weight, reps)
     private List<Integer> durations; // List of durations
     private String exerciseNotes;
     private long doneTime;
+    private long completionTime;
     private int timerMins;
     private int timerSecs;
 
@@ -26,6 +28,7 @@ public class Exercise {
         this.weightReps = new ArrayList<>();
         this.durations = new ArrayList<>();
         this.doneToday = false;
+        this.completed = false;
         this.exerciseNotes = "";
         this.doneTime = 0;
         this.timerMins = 3;
@@ -109,6 +112,19 @@ public class Exercise {
         return this.doneToday;
     }
 
+    public void setCompleted(boolean completed) {
+        this.completed = completed;
+        if (completed) {
+            this.completionTime = System.currentTimeMillis();
+        } else {
+            this.completionTime = 0; // Reset timestamp when unchecked
+        }
+    }
+
+    public boolean getCompleted() {
+        return this.completed;
+    }
+
     public List<int[]> getWeightReps() {
         return weightReps;
     }
@@ -131,6 +147,14 @@ public class Exercise {
 
     public void setDoneTime(long doneTime) {
         this.doneTime = doneTime;
+    }
+
+    public long getCompletionTime() {
+        return completionTime;
+    }
+
+    public void setCompletionTime(long completionTime) {
+        this.completionTime = completionTime;
     }
 
     public void addDuration(int duration) {

@@ -1,5 +1,7 @@
 package com.test.bravo.ui.home;
 
+import static android.content.Context.MODE_PRIVATE;
+
 import com.test.bravo.services.TimerReceiver;
 import com.test.bravo.services.TimerService;
 import com.test.bravo.ui.home.DateSelector.*;
@@ -11,9 +13,12 @@ import java.io.FileWriter;
 import java.lang.reflect.Field;
 import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
+import java.text.ParseException;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import com.test.bravo.model.Category;
 import com.test.bravo.model.Exercise;
@@ -23,6 +28,7 @@ import android.app.AlarmManager;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
+import android.content.SharedPreferences;
 import android.media.Ringtone;
 import android.media.RingtoneManager;
 import android.net.Uri;
@@ -110,6 +116,8 @@ import org.json.JSONObject;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.Set;
+
 import android.media.AudioAttributes;
 import android.media.AudioManager;
 import android.media.MediaPlayer;
@@ -119,10 +127,13 @@ public class HomeFragment extends Fragment {
 
     private FragmentHomeBinding binding;
     private LinearLayout categoryContainer;
+    private LinearLayout todoContainer;
     private Button createCategoryButton;
     private Map<String, Category> categoryMap = new HashMap<>();
     private DatabaseHelper databaseHelper;
     private List<Exercise> completedExercises;
+    private String currentDateGlobal;
+    private String selectedDateGlobal;
 
     private final String[] suggestedCategories = {
             "Push", "Pull", "Legs", "Biceps", "Triceps",
@@ -222,6 +233,7 @@ public class HomeFragment extends Fragment {
                 dateText.animate().scaleX(1f).scaleY(1f).setDuration(100); // Reset size
 //                dateText.setTypeface(boldTypeface);
             });
+            dateText.setTypeface(null, Typeface.NORMAL);
             showCompletedExercisesPopup();
         });
 
@@ -235,6 +247,7 @@ public class HomeFragment extends Fragment {
         // Initialize UI elements
         categoryContainer = root.findViewById(R.id.category_container);
         createCategoryButton = root.findViewById(R.id.create_category_button);
+        todoContainer = root.findViewById(R.id.exercises_todo);
 
         if (categoryMap.isEmpty()) {
 //            System.out.println("The categoryMap is empty.");
@@ -242,6 +255,29 @@ public class HomeFragment extends Fragment {
         } else {
             loadViewFromMap();
         }
+
+
+        // Get the current date
+        String currentDate = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
+        currentDateGlobal = currentDate;
+        selectedDateGlobal = currentDate;
+
+//        onNewDay();
+
+        // Retrieve the last opened date from SharedPreferences
+        SharedPreferences sharedPreferences = requireContext().getSharedPreferences("AppPreferences", MODE_PRIVATE);
+        String lastOpenedDate = sharedPreferences.getString("lastOpenedDate", "");
+        Log.e("DateTag",currentDate);
+        Log.e("DateTag",lastOpenedDate);
+
+        if (!currentDate.equals(lastOpenedDate)) {
+            onNewDay();
+            Log.e("DateTag","Diff Date");
+            saveLastOpenedDate(currentDate); // Save the new date
+        }
+
+
+        fillTodoExercises();
 
 
 //         Set up button listener
@@ -253,6 +289,407 @@ public class HomeFragment extends Fragment {
         });
 
         return root;
+    }
+
+    private void onNewDay() {
+        // Get today's date in "yyyy-MM-dd" format
+        resetAllExercises();
+        databaseHelper.deletePlannedExercisesBeforeDate(currentDateGlobal);
+        List<Exercise> plannedExercises = databaseHelper.getPlannedExercises(currentDateGlobal);
+        completedExercises = getFullExercises(plannedExercises);
+        setCheckBoxes(completedExercises);
+        databaseHelper.saveDataToDatabase(categoryMap);
+
+    }
+
+    private void saveLastOpenedDate(String currentDate) {
+        SharedPreferences sharedPreferences = requireContext().getSharedPreferences("AppPreferences", Context.MODE_PRIVATE);
+        SharedPreferences.Editor editor = sharedPreferences.edit();
+        editor.putString("lastOpenedDate", currentDate);
+        editor.apply();
+    }
+
+    private void resetAllExercises() {
+        // Reset completedExercises list
+        for (Exercise exercise : completedExercises) {
+            exercise.setCompleted(false);
+            exercise.setCompletionTime(0);
+        }
+        completedExercises.clear();
+
+        // Reset all exercises in categoryMap
+        for (Category category : categoryMap.values()) {
+            for (Exercise exercise : category.getExercises()) {
+                exercise.setDoneToday(false);
+                exercise.setDoneTime(0);
+            }
+        }
+
+        // Save the updated data back to the database
+        if (currentDateGlobal.equals(selectedDateGlobal)) {
+            databaseHelper.saveDataToDatabase(categoryMap);
+        }
+
+        loadViewFromMap();
+        Log.i("ResetAllExercises", "All exercises have been reset.");
+    }
+
+    private void fillTodoExercises(){
+        if (completedExercises.size() == 0){
+            TextView noExercisesTextView;
+
+            if (isDateGreater(currentDateGlobal, selectedDateGlobal)){
+                Log.e("LogicTag", "Outer");
+                if (databaseHelper.getDailyActivity(selectedDateGlobal).size() == 0){
+                    Log.e("LogicTag", "Inner");
+                    noExercisesTextView= noExercisesText();
+                    todoContainer.addView(noExercisesTextView, 1);
+                }
+            } else {
+
+                noExercisesTextView= noExercisesText();
+                todoContainer.addView(noExercisesTextView, 1);
+            }
+
+        } else{
+            for (Exercise exercise: completedExercises){
+                addExerciseToParent(exercise, todoContainer);
+            }
+        }
+    }
+
+    private void addExerciseToParent(Exercise exercise, LinearLayout parent) {
+
+        LinearLayout exerciseLayout = new LinearLayout(getContext());
+        exerciseLayout.setOrientation(LinearLayout.HORIZONTAL);
+        exerciseLayout.setLayoutParams(new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT));
+        exerciseLayout.setPadding(8, 16, 8, 0);
+        exerciseLayout.setTag(exercise.getName());
+
+        LinearLayout exerciseContainer = new LinearLayout(getContext());
+        exerciseContainer.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout.LayoutParams containerParams = new LinearLayout.LayoutParams(
+                0,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                1f
+        );
+        exerciseContainer.setLayoutParams(containerParams);
+        exerciseContainer.setTag(exercise.getName());
+
+        GradientDrawable backgroundDrawable = new GradientDrawable();
+        backgroundDrawable.setColor(availableColors[exercise.getCategoryClr()]); // Use the category color
+        backgroundDrawable.setCornerRadius(16); // Rounded corners
+        exerciseContainer.setBackground(backgroundDrawable);
+
+        TextView exerciseText = new TextView(getContext());
+        exerciseText.setText(exercise.getName());
+        exerciseText.setTextSize(16);
+        exerciseText.setTextColor(Color.parseColor("#EDEDED"));
+        exerciseText.setGravity(Gravity.CENTER_VERTICAL);
+        exerciseText.setPadding(16, 16, 16, 0);
+
+        View whiteLine = new View(getContext());
+        LinearLayout.LayoutParams lineParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                3 // Height in dp
+        );
+        lineParams.setMargins(16, 0, 16, 16);
+        whiteLine.setLayoutParams(lineParams);
+        whiteLine.setBackgroundColor(Color.parseColor("#FFFFFF"));
+
+        // Table stuff
+        TableLayout tableLayout = new TableLayout(getContext());
+        tableLayout.setTag("exerciseTable");
+        tableLayout.setStretchAllColumns(false);
+
+        String setType = exercise.getSetType();
+
+        if (setType.equals("Weight x Reps")) {
+            // Create the first row (Weight)
+            TableRow weightRow = new TableRow(getContext());
+            TextView weightLabel = new TextView(getContext());
+            weightLabel.setText("Weight");
+            weightLabel.setTextColor(Color.parseColor("#EDEDED"));
+            weightRow.addView(weightLabel);
+
+            if (exercise.getWeightReps().size() > 0){
+                for (int i = 0; i < exercise.getWeightReps().size(); i++) {
+                    TextView weightCell = new TextView(getContext());
+                    weightCell.setText(padToFourCharacters(String.valueOf((Object) exercise.getWeightReps().get(i)[0])));
+                    weightCell.setTextColor(Color.parseColor("#EDEDED"));
+                    weightCell.setPadding(64, 0, 0, 0);
+                    weightRow.addView(weightCell);
+                }
+            } else {
+                for (int i = 0; i < 4; i++) {
+                    TextView weightCell = new TextView(getContext());
+                    weightCell.setText(padToFourCharacters(String.valueOf("0")));
+                    weightCell.setTextColor(Color.parseColor("#EDEDED"));
+                    weightCell.setPadding(64, 0, 0, 0);
+                    weightRow.addView(weightCell);
+                }
+            }
+
+
+
+            // Create the second row (Reps)
+            TableRow repsRow = new TableRow(getContext());
+            TextView repsLabel = new TextView(getContext());
+            repsLabel.setText("Reps");
+            repsLabel.setTextColor(Color.parseColor("#EDEDED"));
+            repsRow.addView(repsLabel);
+
+            if (exercise.getWeightReps().size() > 0){
+                for (int i = 0; i < exercise.getWeightReps().size(); i++) {
+                    TextView repsCell = new TextView(getContext());
+                    repsCell.setText(String.valueOf((Object) exercise.getWeightReps().get(i)[1]));
+                    repsCell.setTextColor(Color.parseColor("#EDEDED"));
+                    repsCell.setPadding(64, 0, 0, 0);
+                    repsRow.addView(repsCell);
+                }
+            } else {
+                for (int i = 0; i < 4; i++) {
+                    TextView repsCell = new TextView(getContext());
+                    repsCell.setText(padToFourCharacters(String.valueOf("0")));
+                    repsCell.setTextColor(Color.parseColor("#EDEDED"));
+                    repsCell.setPadding(64, 0, 0, 0);
+                    repsRow.addView(repsCell);
+                }
+            }
+
+            // Add both rows to the table
+            tableLayout.addView(weightRow);
+            tableLayout.addView(repsRow);
+
+        } else if (setType.equals("Duration")) {
+            // Create a single row for Duration
+            TableRow durationRow = new TableRow(getContext());
+            TextView durationLabel = new TextView(getContext());
+            durationLabel.setText("Duration");
+            durationLabel.setTextColor(Color.parseColor("#EDEDED"));
+            durationRow.addView(durationLabel);
+
+
+            if (exercise.getDurations().size() > 0){
+                for (int i = 0; i < exercise.getDurations().size(); i++) {
+                    TextView durationCell = new TextView(getContext());
+                    durationCell.setText(String.format(String.valueOf((Object) exercise.getDurations().get(i))));
+                    durationCell.setTextColor(Color.parseColor("#EDEDED"));
+                    durationCell.setPadding(64, 0, 0, 0);
+                    durationRow.addView(durationCell);
+                }
+            } else {
+                for (int i = 0; i < 4; i++) {
+                    TextView durationCell = new TextView(getContext());
+                    durationCell.setText(padToFourCharacters(String.valueOf("0")));
+                    durationCell.setTextColor(Color.parseColor("#EDEDED"));
+                    durationCell.setPadding(64, 0, 0, 0);
+                    durationRow.addView(durationCell);
+                }
+            }
+
+            TableRow durationRow2 = new TableRow(getContext());
+            TextView durationLabel2 = new TextView(getContext());
+            durationLabel2.setText("(Seconds)");
+            durationLabel2.setTextColor(Color.parseColor("#EDEDED"));
+            durationRow2.addView(durationLabel2);
+
+            // Add the row to the table
+            tableLayout.addView(durationRow);
+            tableLayout.addView(durationRow2);
+        }
+
+        tableLayout.setGravity(Gravity.CENTER_VERTICAL);
+        tableLayout.setPadding(32, 0, 32, 24);
+
+        // Add table logic
+
+        exerciseContainer.addView(exerciseText);
+        exerciseContainer.addView(whiteLine);
+        exerciseContainer.addView(tableLayout);
+
+        // Check box logic
+        CheckBox exerciseCheckBox = new CheckBox(getContext());
+        exerciseCheckBox.setLayoutParams(new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT));
+
+        if (exercise.getCompleted()) {
+            backgroundDrawable.setAlpha(192);
+            exerciseCheckBox.setChecked(true);
+        } else {
+            backgroundDrawable.setAlpha(255);
+            exerciseCheckBox.setChecked(false);
+        }
+
+        String currentDate = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
+
+        exerciseCheckBox.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (isChecked) {
+                if (currentDateGlobal.equals(selectedDateGlobal)) {
+                    backgroundDrawable.setAlpha(192);
+                    exercise.setCompleted(true);
+                    databaseHelper.saveDailyActivity(currentDate, exercise, exercise.getCategoryName(), exercise.getCategoryClr());
+                } else {
+                    databaseHelper.savePlannedExercise(selectedDateGlobal, exercise);
+                    exerciseCheckBox.setChecked(false);
+                }
+            } else {
+                if (currentDateGlobal.equals(selectedDateGlobal)) {
+                    backgroundDrawable.setAlpha(255);
+                    exercise.setCompleted(false);
+                    databaseHelper.deleteDailyActivity(currentDate, exercise.getName());
+                }
+            }
+            exerciseContainer.setBackground(backgroundDrawable);
+            if (currentDateGlobal.equals(selectedDateGlobal)) {
+                databaseHelper.saveDataToDatabase(categoryMap);
+            }
+        });
+
+        // Create the option icon (ImageView)
+        ImageView optionIcon = new ImageView(getContext());
+        optionIcon.setImageResource(android.R.drawable.ic_menu_revert); // Use a built-in Android icon or your custom icon
+        int iconSize = (int) (36 * getResources().getDisplayMetrics().density); // Example: 24dp size
+        optionIcon.setLayoutParams(new LinearLayout.LayoutParams(iconSize, iconSize));
+
+        optionIcon.setPadding(0, 16, 12, 16);
+        int nightModeFlags = getContext().getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK;
+        if (nightModeFlags == Configuration.UI_MODE_NIGHT_YES) {
+            optionIcon.setColorFilter(Color.WHITE); // Set color filter to white for dark mode
+        } else {
+            optionIcon.setColorFilter(null); // Remove color filter for light mode (or set to default color if needed)
+        }
+
+        optionIcon.setOnClickListener(v -> {
+            String exerciseName = exercise.getName(); // Assuming you have the `exercise` object available
+            AlertDialog.Builder builder = new AlertDialog.Builder(getContext());
+            builder.setTitle("Remove Exercise")
+                    .setMessage("Remove " + exerciseName + " from today's exercises?")
+                    .setPositiveButton("OK", (dialog, which) -> {
+                        // Remove the exercise from today's list
+
+                        databaseHelper.deletePlannedExercise(selectedDateGlobal, exerciseName);
+
+
+
+                        exercise.setDoneToday(false);
+                        completedExercises.remove(exercise);
+                        refreshTodoList(todoContainer, completedExercises);
+                        dialog.dismiss();
+                        loadViewFromMap();
+                        if (currentDateGlobal.equals(selectedDateGlobal)) {
+                            databaseHelper.saveDataToDatabase(categoryMap);
+                        }
+                    })
+                    .setNegativeButton("Cancel", (dialog, which) -> {
+                        // Dismiss the dialog
+                        dialog.dismiss();
+                    });
+
+            AlertDialog dialog = builder.create();
+            dialog.show();
+
+            // Align buttons to bottom right
+            dialog.getWindow().setGravity(Gravity.CENTER);
+        });
+
+
+        LinearLayout verticalLayout = new LinearLayout(getContext());
+        verticalLayout.setOrientation(LinearLayout.VERTICAL);
+        verticalLayout.setLayoutParams(new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT));
+
+        verticalLayout.addView(exerciseCheckBox);
+        verticalLayout.addView(optionIcon);
+
+        exerciseContainer.setOnClickListener(v -> showExerciseDetailsPopup(exercise, exercise.getCategoryName(), exercise.getCategoryClr()));
+        exerciseLayout.addView(exerciseContainer);
+        exerciseLayout.addView(verticalLayout);
+
+
+        // Add the exerciseLayout to the parent
+        TextView allExercisesTitle = parent.findViewById(R.id.all_exercise_title);
+
+        if (allExercisesTitle != null) {
+            int index = parent.indexOfChild(allExercisesTitle);
+            parent.addView(exerciseLayout, index);
+        } else {
+            parent.addView(exerciseLayout);
+        }
+
+    }
+
+    private void refreshTodoList(LinearLayout todoContainer, List<Exercise> completedExercises) {
+        // Remove all exercise layouts in the todoContainer
+        for (int i = todoContainer.getChildCount() - 1; i >= 0; i--) {
+            View child = todoContainer.getChildAt(i);
+
+            // Check if the view is a LinearLayout (exercise layout) and has a tag (set in addExerciseToParent)
+            if (child instanceof LinearLayout && child.getTag() != null) {
+                todoContainer.removeViewAt(i);
+            }
+
+            if (child instanceof TextView && child.getTag() != null) {
+                todoContainer.removeViewAt(i);
+            }
+        }
+
+        if (completedExercises.size() == 0) {
+            // Add a centered TextView saying "No exercises added yet"
+            TextView noExercisesTextView;
+
+            if (isDateGreater(currentDateGlobal, selectedDateGlobal)){
+                Log.e("LogicTag", "Outer");
+                if (databaseHelper.getDailyActivity(selectedDateGlobal).size() == 0){
+                    Log.e("LogicTag", "Inner");
+                    noExercisesTextView= noExercisesText();
+                    todoContainer.addView(noExercisesTextView, 1);
+                }
+            } else {
+
+                noExercisesTextView= noExercisesText();
+                todoContainer.addView(noExercisesTextView, 1);
+            }
+
+        } else {
+            // Add each exercise in completedExercises to the todoContainer
+            for (Exercise exercise : completedExercises) {
+                addExerciseToParent(exercise, todoContainer);
+            }
+        }
+    }
+
+    private TextView noExercisesText(){
+        TextView noExercisesTextView = new TextView(getContext());
+
+        if (!currentDateGlobal.equals(selectedDateGlobal)){
+            if (isDateGreater(selectedDateGlobal, currentDateGlobal)) {
+                noExercisesTextView.setText("No exercises planned for " + selectedDateGlobal);
+            } else {
+                noExercisesTextView.setText("No exercises completed on " + selectedDateGlobal);
+            }
+        } else {
+            noExercisesTextView.setText("No exercises added for today");
+        }
+        noExercisesTextView.setTextSize(16);
+        noExercisesTextView.setTextColor(Color.GRAY);
+        noExercisesTextView.setGravity(Gravity.CENTER);
+        noExercisesTextView.setTag("NoExercises");
+        noExercisesTextView.setPadding(0,46,0,0);
+
+        // Set layout parameters to center the TextView within the parent
+        LinearLayout.LayoutParams layoutParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.MATCH_PARENT
+        );
+        layoutParams.gravity = Gravity.CENTER;
+
+        noExercisesTextView.setLayoutParams(layoutParams);
+        return noExercisesTextView;
     }
 
     private String getDayWithOrdinal(int day) {
@@ -279,16 +716,80 @@ public class HomeFragment extends Fragment {
         SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy", Locale.getDefault());
         String currentDate = dateFormat.format(new Date());
 
-
+        selectedDateGlobal = convertDateFormat(selectedDate);
+        LinearLayout exercisesTodoLayout = getView().findViewById(R.id.exercises_todo);
+        TextView allExerciseTitle = getView().findViewById(R.id.all_exercise_title);
+        TextView exerciseTitle = getView().findViewById(R.id.todays_exercises_title);
 
         // Compare the selected date with the current date
         if (selectedDate.equals(currentDate)) {
             // If the selected date is the current date, make categoryContainer visible
             categoryContainer.setVisibility(View.VISIBLE);
+//            exercisesTodoLayout.setVisibility(View.VISIBLE);
+            allExerciseTitle.setText("All Exercises");
+            exerciseTitle.setText("Today's Exercises");
+            categoryMap = databaseHelper.loadDataFromDatabase();
+            loadViewFromMap();
+            completedExercises = getCompletedExercises();
+            refreshTodoList(todoContainer, completedExercises);
         } else {
             // Otherwise, hide the categoryContainer
-            categoryContainer.setVisibility(View.GONE);
+
+            if (isDateGreater(selectedDateGlobal, currentDateGlobal)) {
+                categoryContainer.setVisibility(View.VISIBLE);
+//                exercisesTodoLayout.setVisibility(View.VISIBLE);
+                List<Exercise> plannedExercises = databaseHelper.getPlannedExercises(selectedDateGlobal);
+                setCheckBoxes(plannedExercises);
+                exerciseTitle.setText("Planned Exercises");
+                allExerciseTitle.setText("All Exercises");
+                completedExercises = getFullExercises(plannedExercises);
+                loadViewFromMap();
+                refreshTodoList(todoContainer, completedExercises);
+            }
+            else {
+
+//                exercisesTodoLayout.setVisibility(View.INVISIBLE);
+                allExerciseTitle.setText("");
+                exerciseTitle.setText("Completed Exercises");
+                categoryContainer.setVisibility(View.INVISIBLE);
+                completedExercises = new ArrayList<>();
+                refreshTodoList(todoContainer, completedExercises);
+                addExerciseContainersToLayout(databaseHelper.getDailyActivity(selectedDateGlobal), exercisesTodoLayout);
+            }
         }
+    }
+
+    private String convertDateFormat(String inFormat){
+
+        SimpleDateFormat inputFormat = new SimpleDateFormat("dd/MM/yyyy");
+        SimpleDateFormat outputFormat = new SimpleDateFormat("yyyy-MM-dd");
+        String outDate = "";
+        try {
+            Date date = inputFormat.parse(inFormat);
+            outDate = outputFormat.format(date);
+        } catch (ParseException e) {
+            System.err.println("Invalid date format: " + inFormat);
+        }
+        return outDate;
+    }
+
+    public boolean isDateGreater(String date1, String date2) {
+        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
+
+        try {
+            // Parse the dates
+            Date parsedDate1 = dateFormat.parse(date1);
+            Date parsedDate2 = dateFormat.parse(date2);
+
+            // Compare the dates
+            if (parsedDate1 != null && parsedDate2 != null) {
+                return parsedDate1.after(parsedDate2);
+            }
+        } catch (ParseException e) {
+            e.printStackTrace();
+        }
+
+        return false; // Return false in case of an error
     }
 
     private List<Exercise> getCompletedExercises() {
@@ -306,12 +807,67 @@ public class HomeFragment extends Fragment {
         return completedList;
     }
 
+    private List<Exercise> getFullExercises(List<Exercise> inputExercises) {
+        List<Exercise> completeExercises = new ArrayList<>();
+
+        // Loop through the input exercises
+        for (Exercise inputExercise : inputExercises) {
+            // Extract the exercise name
+            String exerciseName = inputExercise.getName();
+
+            // Loop through the categoryMap
+            for (Map.Entry<String, Category> entry : categoryMap.entrySet()) {
+                Category category = entry.getValue();
+
+                // Check if the category contains the exercise
+                if (category.hasExercise(exerciseName)) {
+                    // Add the matching exercise to the complete list
+                    completeExercises.add(category.getExercise(exerciseName));
+                    category.getExercise(exerciseName).setSetType(inputExercise.getSetType());
+                    category.getExercise(exerciseName).setWeightReps(inputExercise.getWeightReps());
+                    category.getExercise(exerciseName).setDurations(inputExercise.getDurations());
+
+                    break; // Break out of the loop once the exercise is found
+                }
+            }
+        }
+        Collections.sort(completeExercises, Comparator.comparingLong(Exercise::getCompletionTime));
+        return completeExercises;
+    }
+
+    private void setCheckBoxes(List<Exercise> inputExercises) {
+
+        Set<String> inputExerciseNames = new HashSet<>();
+        for (Exercise inputExercise : inputExercises) {
+            inputExerciseNames.add(inputExercise.getName());
+        }
+
+
+        for (Map.Entry<String, Category> entry : categoryMap.entrySet()) {
+            Category category = entry.getValue();
+            for (Exercise exercise : category.getExercises()) {
+
+                if (inputExerciseNames.contains(exercise.getName())) {
+                    exercise.setDoneToday(true);
+                } else {
+                    exercise.setDoneToday(false);
+                    exercise.setDoneTime(0);
+                }
+                exercise.setCompleted(false);
+                exercise.setCompletionTime(0);
+            }
+        }
+    }
+
+
     private void collapseAllCategories() {
         for (Category category : categoryMap.values()) {
             category.setIsCollapsed(true); // Update state
         }
         loadViewFromMap();
-        databaseHelper.saveDataToDatabase(categoryMap);
+        if (currentDateGlobal.equals(selectedDateGlobal)) {
+            databaseHelper.saveDataToDatabase(categoryMap);
+        }
     }
 
     private void expandAllCategories() {
@@ -319,7 +875,9 @@ public class HomeFragment extends Fragment {
             category.setIsCollapsed(false); // Update state
         }
         loadViewFromMap(); // Refresh UI
-        databaseHelper.saveDataToDatabase(categoryMap);
+        if (currentDateGlobal.equals(selectedDateGlobal)) {
+            databaseHelper.saveDataToDatabase(categoryMap);
+        }
     }
 
     private void showCompletedExercisesPopup() {
@@ -804,7 +1362,9 @@ public class HomeFragment extends Fragment {
                 Category category = categoryMap.remove(categoryName);
                 categoryMap.put(newCategoryName, category);
                 category.setName(newCategoryName);
-                databaseHelper.saveDataToDatabase(categoryMap);
+                if (currentDateGlobal.equals(selectedDateGlobal)) {
+                    databaseHelper.saveDataToDatabase(categoryMap);
+                }
                 loadViewFromMap(); // Refresh the UI
             } else {
                 Toast.makeText(getContext(), "Invalid or duplicate name", Toast.LENGTH_SHORT).show();
@@ -892,7 +1452,9 @@ public class HomeFragment extends Fragment {
             } else {
                 // If exercise doesn't exist, add it
                 addExerciseToCategory(categoryLayout, exerciseName, setType, color);
-                databaseHelper.saveDataToDatabase(categoryMap);
+                if (currentDateGlobal.equals(selectedDateGlobal)) {
+                    databaseHelper.saveDataToDatabase(categoryMap);
+                }
             }
 
         });
@@ -920,6 +1482,9 @@ public class HomeFragment extends Fragment {
         }
 
         Exercise newExercise = category.getExercise(exerciseName);
+
+        newExercise.setCategoryClr(categoryColor);
+        newExercise.setCategoryName((String) categoryLayout.getTag());
 
         // Create the horizontal LinearLayout for the exercise
         LinearLayout exerciseLayout = new LinearLayout(getContext());
@@ -1119,18 +1684,21 @@ public class HomeFragment extends Fragment {
                 if (!completedExercises.contains(newExercise)) {
                     completedExercises.add(newExercise);
                 }
-                databaseHelper.saveDailyActivity(currentDate, newExercise, categoryName, categoryColor);
+                databaseHelper.savePlannedExercise(selectedDateGlobal, newExercise);
 
             } else {
                 backgroundDrawable.setAlpha(255); // Set alpha back to 1.0
                 newExercise.setDoneToday(false);
 
                 completedExercises.remove(newExercise);
-                databaseHelper.deleteDailyActivity(currentDate, newExercise.getName());
+                databaseHelper.deletePlannedExercise(selectedDateGlobal, newExercise.getName());
             }
 //            displayCompletedExercises();
-            databaseHelper.saveDataToDatabase(categoryMap);
+            if (currentDateGlobal.equals(selectedDateGlobal)) {
+                databaseHelper.saveDataToDatabase(categoryMap);
+            }
             exerciseContainer.setBackground(backgroundDrawable);
+            refreshTodoList(todoContainer, completedExercises);
         });
 
         // Create the option icon (ImageView)
@@ -1479,11 +2047,23 @@ public class HomeFragment extends Fragment {
             LinearLayout parentCategoryLayout = (LinearLayout) categoryContainer.findViewWithTag(categoryName);
             LinearLayout exerciseContainer = parentCategoryLayout.findViewWithTag(exercise.getName());
             refreshExerciseContainer(exerciseContainer, exercise, categoryColor);
+            refreshTodoList(todoContainer, completedExercises);
         });
 
 // Ensure the timer and notification are stopped if the dialog is dismissed by clicking outside
         dialog.setOnDismissListener(dialogInterface -> {
+            String notes = notesField.getText().toString().trim();
+            exercise.setExerciseNotes(notes);
+
+            dialog.dismiss();
+
             stopTimerAndNotification(timer, isTimerRunning);
+
+            // Refresh the exerciseContainer to reflect updated values
+            LinearLayout parentCategoryLayout = (LinearLayout) categoryContainer.findViewWithTag(categoryName);
+            LinearLayout exerciseContainer = parentCategoryLayout.findViewWithTag(exercise.getName());
+            refreshExerciseContainer(exerciseContainer, exercise, categoryColor);
+            refreshTodoList(todoContainer, completedExercises);
         });
 
         // Show the dialog
@@ -1794,8 +2374,116 @@ public class HomeFragment extends Fragment {
             }
         }
         Log.i("myTag4", "Calling Save Data");
-        databaseHelper.saveDataToDatabase(categoryMap);
+        if (currentDateGlobal.equals(selectedDateGlobal)) {
+            databaseHelper.saveDataToDatabase(categoryMap);
+        }
 
+    }
+
+    private void addExerciseContainersToLayout(List<Exercise> exercises, LinearLayout exercisesTodoLayout) {
+        for (Exercise exercise : exercises) {
+            // Create container for the exercise
+            LinearLayout exerciseContainer = new LinearLayout(getContext());
+            exerciseContainer.setOrientation(LinearLayout.VERTICAL);
+            exerciseContainer.setPadding(8, 8, 8, 8);
+
+            // Set the background color and rounded corners for the exercise container
+            GradientDrawable backgroundDrawable = new GradientDrawable();
+            backgroundDrawable.setColor(availableColors[Math.max(0, exercise.getCategoryClr())]);
+            backgroundDrawable.setCornerRadius(16); // Rounded corners
+            exerciseContainer.setBackground(backgroundDrawable);
+
+            // Add margins to create gaps between containers
+            LinearLayout.LayoutParams containerParams = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+            );
+            containerParams.setMargins(0, 8, 0, 8); // Add margins (left, top, right, bottom)
+            exerciseContainer.setLayoutParams(containerParams);
+
+            // Create text view for exercise name
+            TextView exerciseText = new TextView(getContext());
+            exerciseText.setText(exercise.getName());
+            exerciseText.setTextSize(16);
+            exerciseText.setTextColor(Color.parseColor("#EDEDED"));
+            exerciseText.setPadding(16, 8, 16, 0);
+
+            // Add a divider
+            View whiteLine = new View(getContext());
+            LinearLayout.LayoutParams lineParams = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    3
+            );
+            lineParams.setMargins(16, 0, 16, 16);
+            whiteLine.setLayoutParams(lineParams);
+            whiteLine.setBackgroundColor(Color.parseColor("#FFFFFF"));
+
+            // Create the table based on setType
+            TableLayout tableLayout = new TableLayout(getContext());
+            tableLayout.setStretchAllColumns(false);
+            tableLayout.setPadding(32, 0, 32, 0);
+
+            if ("Weight x Reps".equals(exercise.getSetType())) {
+                // Add weight row
+                TableRow weightRow = new TableRow(getContext());
+                TextView weightLabel = new TextView(getContext());
+                weightLabel.setText("Weight");
+                weightLabel.setTextColor(Color.parseColor("#EDEDED"));
+                weightRow.addView(weightLabel);
+
+                for (int[] weightReps : exercise.getWeightReps()) {
+                    TextView weightCell = new TextView(getContext());
+                    weightCell.setText(String.valueOf(weightReps[0]));
+                    weightCell.setTextColor(Color.parseColor("#EDEDED"));
+                    weightCell.setPadding(64, 0, 0, 0);
+                    weightRow.addView(weightCell);
+                }
+                tableLayout.addView(weightRow);
+
+                // Add reps row
+                TableRow repsRow = new TableRow(getContext());
+                TextView repsLabel = new TextView(getContext());
+                repsLabel.setText("Reps");
+                repsLabel.setTextColor(Color.parseColor("#EDEDED"));
+                repsRow.addView(repsLabel);
+
+                for (int[] weightReps : exercise.getWeightReps()) {
+                    TextView repsCell = new TextView(getContext());
+                    repsCell.setText(String.valueOf(weightReps[1]));
+                    repsCell.setTextColor(Color.parseColor("#EDEDED"));
+                    repsCell.setPadding(64, 0, 0, 0);
+                    repsRow.addView(repsCell);
+                }
+                tableLayout.addView(repsRow);
+
+            } else if ("Duration".equals(exercise.getSetType())) {
+                // Add duration row
+                TableRow durationRow = new TableRow(getContext());
+                TextView durationLabel = new TextView(getContext());
+                durationLabel.setText("Duration");
+                durationLabel.setTextColor(Color.parseColor("#EDEDED"));
+                durationRow.addView(durationLabel);
+
+                for (int duration : exercise.getDurations()) {
+                    TextView durationCell = new TextView(getContext());
+                    durationCell.setText(String.valueOf(duration));
+                    durationCell.setTextColor(Color.parseColor("#EDEDED"));
+                    durationCell.setPadding(64, 0, 0, 0);
+                    durationRow.addView(durationCell);
+                }
+                tableLayout.addView(durationRow);
+            }
+
+            // Add views to the container
+            exerciseContainer.addView(exerciseText);
+            exerciseContainer.addView(whiteLine);
+            exerciseContainer.addView(tableLayout);
+            exerciseContainer.setTag(exercise.getName());
+
+            // Add exercise container as the second last child
+            int insertPosition = Math.max(0, exercisesTodoLayout.getChildCount() - 1);
+            exercisesTodoLayout.addView(exerciseContainer, insertPosition);
+        }
     }
 //
 
@@ -1810,13 +2498,17 @@ public class HomeFragment extends Fragment {
     @Override
     public void onPause() {
         super.onPause();
-        databaseHelper.saveDataToDatabase(categoryMap);
+        if (currentDateGlobal.equals(selectedDateGlobal)) {
+            databaseHelper.saveDataToDatabase(categoryMap);
+        }
     }
 
     @Override
     public void onStop() {
         super.onStop();
-        databaseHelper.saveDataToDatabase(categoryMap);
+        if (currentDateGlobal.equals(selectedDateGlobal)) {
+            databaseHelper.saveDataToDatabase(categoryMap);
+        }
     }
 
 

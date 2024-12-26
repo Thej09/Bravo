@@ -1,5 +1,7 @@
 package com.test.bravo.ui.dashboard;
 
+import static java.lang.Math.max;
+
 import android.content.Context;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
@@ -14,6 +16,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.GridLayout;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TableLayout;
@@ -30,10 +33,13 @@ import com.test.bravo.database.DatabaseHelper;
 import com.test.bravo.databinding.FragmentDashboardBinding;
 import com.test.bravo.model.Exercise;
 
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -43,6 +49,7 @@ import java.util.Map;
 public class DashboardFragment extends Fragment {
 
     private FragmentDashboardBinding binding;
+    private int changeMonth = 0;
 
     private final int[] availableColors = {
             Color.parseColor("#FD4500"),
@@ -72,15 +79,54 @@ public class DashboardFragment extends Fragment {
         String currentMonth = new SimpleDateFormat("MMMM yyyy", Locale.getDefault()).format(new Date());
         monthTitle.setText(currentMonth);
 
+        ImageView left_arrow = root.findViewById(R.id.left_arrow);
+        left_arrow.setRotation(90);
+        ImageView right_arrow = root.findViewById(R.id.right_arrow);
+        right_arrow.setRotation(270);
+
+        if (changeMonth == 0) {
+            left_arrow.setColorFilter(Color.GRAY); // Set left arrow to grey
+            right_arrow.setColorFilter(null); // Reset right arrow color
+        } else {
+            right_arrow.setColorFilter(Color.GRAY); // Set right arrow to grey
+            left_arrow.setColorFilter(null); // Reset left arrow color
+        }
 
         GridLayout calendarGrid = binding.calendarGrid;
+
+        updateCalendar(calendarGrid);
+
+        left_arrow.setOnClickListener(v -> {
+            if (changeMonth == 1) {
+                changeMonth--;
+                left_arrow.setColorFilter(Color.GRAY);
+                right_arrow.setColorFilter(null);
+                updateCalendar(calendarGrid);
+            }
+        });
+
+        right_arrow.setOnClickListener(v -> {
+            if (changeMonth == 0) {
+                changeMonth++;
+                right_arrow.setColorFilter(Color.GRAY);
+                left_arrow.setColorFilter(null);
+                updateCalendar(calendarGrid);
+            }
+        });
+
+        return root;
+    }
+
+    private void updateCalendar(GridLayout calendarGrid) {
+        // Clear the grid before updating
+        calendarGrid.removeAllViews();
 
         // Get data from your DailyActivity table
         DatabaseHelper databaseHelper = new DatabaseHelper(getContext());
         Calendar calendar = Calendar.getInstance();
         int todayDayOfWeek = calendar.get(Calendar.DAY_OF_WEEK); // Sunday = 1, Monday = 2, etc.
 
-        calendar.add(Calendar.DAY_OF_YEAR, -27 - todayDayOfWeek);
+        calendar.add(Calendar.DAY_OF_YEAR, -27 + 28 * changeMonth - todayDayOfWeek);
 
         int screenWidth = getResources().getDisplayMetrics().widthPixels;
         int screenHeight = getResources().getDisplayMetrics().heightPixels;
@@ -91,25 +137,26 @@ public class DashboardFragment extends Fragment {
 
         List<String> columnLabels = Arrays.asList("Su.", "Mo.", "Tu.", "We.", "Th.", "Fr.", "Sa.");
 
+        // Add column labels
         for (String label : columnLabels) {
             TextView labelCell = new TextView(getContext());
             GridLayout.LayoutParams params = new GridLayout.LayoutParams();
 
             params.setMargins(margin, margin, margin, margin);
             params.width = cellWidth;
-            params.height = ViewGroup.LayoutParams.WRAP_CONTENT;;
+            params.height = ViewGroup.LayoutParams.WRAP_CONTENT;
 
             labelCell.setLayoutParams(params);
-            labelCell.setPadding(4, 8, 4, 8); // Add some padding for readability
+            labelCell.setPadding(4, 8, 4, 8); // Add padding for readability
             labelCell.setText(label);
             labelCell.setTextSize(14); // Slightly larger for labels
             labelCell.setTextColor(Color.WHITE);
             labelCell.setGravity(View.TEXT_ALIGNMENT_CENTER);
 
-            // Add the label cell to the GridLayout
             calendarGrid.addView(labelCell);
         }
 
+        // Add day cells
         for (int week = 1; week <= 5; week++) {
             for (int day = 1; day <= 7; day++) {
                 String formattedDate = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
@@ -125,8 +172,8 @@ public class DashboardFragment extends Fragment {
                 params.height = cellHeight;
 
                 dayCellLayout.setLayoutParams(params);
-                dayCellLayout.setPadding(8, 8, 8, 8); // Add padding for readability
-                dayCellLayout.setBackgroundResource(R.drawable.cell_background); // Use a drawable for rounded corners
+                dayCellLayout.setPadding(8, 8, 8, 8);
+                dayCellLayout.setBackgroundResource(R.drawable.cell_background);
 
                 // Add the date label
                 TextView dateLabel = new TextView(getContext());
@@ -136,35 +183,46 @@ public class DashboardFragment extends Fragment {
                 dateLabel.setTextColor(Color.WHITE);
                 dateLabel.setGravity(View.TEXT_ALIGNMENT_CENTER);
 
-
                 // Highlight the current day
                 if (formattedDate.equals(new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
                         .format(new Date()))) {
                     dayCellLayout.setBackgroundResource(R.drawable.cell_background_today);
 
-                    // Get the primary color from the theme
                     TypedValue typedValue = new TypedValue();
                     Context context = getContext();
                     if (context != null && context.getTheme().resolveAttribute(androidx.appcompat.R.attr.colorPrimary, typedValue, true)) {
                         int primaryColor = typedValue.data;
-                        dateLabel.setTextColor(primaryColor); // Set the text color to primary
+                        dateLabel.setTextColor(primaryColor);
                         Typeface boldTypeface = ResourcesCompat.getFont(requireContext(), R.font.poppins_medium);
                         dateLabel.setTypeface(boldTypeface);
                     }
                 }
                 dayCellLayout.addView(dateLabel);
-                // Add exercises
-                List<Exercise> exercises = databaseHelper.getDailyActivity(formattedDate);
+
+                // Handle exercises
+                boolean afterDate = false;
+                try {
+                    SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
+                    Date currentDate = dateFormat.parse(formattedDate);
+                    Date actualDate = new Date();
+
+                    if (currentDate != null && currentDate.after(actualDate)) {
+                        afterDate = true;
+                    }
+                } catch (ParseException e) {
+                    e.printStackTrace();
+                }
+
+                List<Exercise> exercises = !afterDate
+                        ? databaseHelper.getDailyActivity(formattedDate)
+                        : databaseHelper.getPlannedExercises(formattedDate);
+
                 if (exercises != null) {
                     for (Exercise exercise : exercises) {
-                        // Create a TextView for each exercise
                         TextView exerciseView = new TextView(getContext());
-
-                        // Truncate exercise name to fit within one line
                         String exerciseName = exercise.getName();
-                        int maxTextWidth = cellWidth - (int) (0 * getResources().getDisplayMetrics().density); // Account for padding
+                        int maxTextWidth = cellWidth;
 
-                        // Use TextPaint to calculate text width
                         TextPaint textPaint = new TextPaint();
                         textPaint.setTextSize(exerciseView.getTextSize());
                         CharSequence ellipsizedName = TextUtils.ellipsize(
@@ -172,22 +230,22 @@ public class DashboardFragment extends Fragment {
 
                         exerciseView.setText(ellipsizedName);
                         exerciseView.setTextSize(12);
-                        exerciseView.setTextColor(Color.WHITE); // Set text color to white for contrast
-
+                        exerciseView.setTextColor(Color.WHITE);
 
                         GradientDrawable background = new GradientDrawable();
-                        background.setColor(availableColors[exercise.getCategoryClr()]);
-                        background.setCornerRadius(4 * getResources().getDisplayMetrics().density); // Rounded corners
+                        background.setColor(availableColors[Math.max(0, exercise.getCategoryClr())]);
+                        background.setCornerRadius(4 * getResources().getDisplayMetrics().density);
+                        if (afterDate) {
+                            background.setAlpha(64);
+                        }
                         exerciseView.setBackground(background);
 
-                        // Add margin and padding
                         LinearLayout.LayoutParams exerciseParams = new LinearLayout.LayoutParams(
                                 LinearLayout.LayoutParams.MATCH_PARENT,
                                 LinearLayout.LayoutParams.WRAP_CONTENT
                         );
-                        exerciseParams.setMargins(0, 0, 0, 0); // Add margin between exercises
+                        exerciseParams.setMargins(0, 0, 0, 0);
                         exerciseView.setLayoutParams(exerciseParams);
-                        exerciseView.setPadding(0, 0, 0, 0); // Add padding inside the box
 
                         dayCellLayout.addView(exerciseView);
                     }
@@ -197,12 +255,11 @@ public class DashboardFragment extends Fragment {
 
                 calendarGrid.addView(dayCellLayout);
 
-                calendar.add(Calendar.DAY_OF_YEAR, 1); // Move to the next day
+                calendar.add(Calendar.DAY_OF_YEAR, 1);
             }
         }
-
-        return root;
     }
+
 
     private void showExercisePopup(String date, List<Exercise> exercises) {
         // Create a ScrollView for the popup
@@ -211,9 +268,28 @@ public class DashboardFragment extends Fragment {
         popupLayout.setOrientation(LinearLayout.VERTICAL);
         popupLayout.setPadding(32, 32, 32, 32);
 
+        boolean afterDate = false;
+        try {
+            SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
+            Date currentDate = dateFormat.parse(date);
+            Date actualDate = new Date(); // Current date
+
+            if (currentDate != null && currentDate.after(actualDate)) {
+                // If the current date is greater than the actual date, skip further processing
+                afterDate = true;
+            }
+        } catch (ParseException e) {
+            e.printStackTrace();
+        }
+
+
         // Add a title to the popup
         TextView title = new TextView(getContext());
-        title.setText("Exercises on " + date);
+        if (afterDate){
+            title.setText("Exercises planned for " + date);
+        } else {
+            title.setText("Exercises on " + date);
+        }
         title.setTextSize(18);
         TypedValue typedValue = new TypedValue();
         Context context = getContext();
@@ -237,8 +313,11 @@ public class DashboardFragment extends Fragment {
             // Set the background color and rounded corners for the exercise container
             GradientDrawable backgroundDrawable = new GradientDrawable();
 //            int categoryColor = exercise.getCategory().getColor(); // Assuming category has a color
-            backgroundDrawable.setColor(availableColors[exercise.getCategoryClr()]);
+            backgroundDrawable.setColor(availableColors[max(0,exercise.getCategoryClr())]);
             backgroundDrawable.setCornerRadius(16); // Rounded corners
+            if (afterDate){
+                backgroundDrawable.setAlpha(64);
+            }
             exerciseContainer.setBackground(backgroundDrawable);
 
             // Add margins to create gaps between containers

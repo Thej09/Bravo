@@ -23,7 +23,7 @@ import java.util.Map;
 public class DatabaseHelper extends SQLiteOpenHelper {
 
     private static final String DATABASE_NAME = "bravo.db";
-    private static final int DATABASE_VERSION = 6;
+    private static final int DATABASE_VERSION = 9;
 
     // Table and Column Definitions
     private static final String TABLE_CATEGORY = "Category";
@@ -48,6 +48,14 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     private static final String KEY_DURATIONS_DAILY = "durations";
     private static final String KEY_DONE_TIME = "done_time";
 
+    private static final String TABLE_PLANNED_EXERCISES = "PlannedExercises";
+    private static final String KEY_PLANNED_DATE = "planned_date";
+    private static final String KEY_PLANNED_EXERCISE_NAME = "exercise_name";
+    private static final String KEY_PLANNED_SET_TYPE = "set_type";
+    private static final String KEY_PLANNED_WEIGHT_REPS = "weight_reps";
+    private static final String KEY_PLANNED_DURATIONS = "durations";
+    private static final String KEY_PLANNED_ADDED_TIME = "added_time";
+
     public DatabaseHelper(Context context) {
         super(context, DATABASE_NAME, null, DATABASE_VERSION);
     }
@@ -65,7 +73,8 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 KEY_CATEGORY_NAME_FK + " TEXT, " +
                 KEY_SET_TYPE + " TEXT, " +
                 KEY_DONE_TODAY + " INTEGER, " +
-                "doneTime INTEGER, " +  // New column to store doneTime as a timestamp
+                "completed INTEGER, " +  // New field for boolean completed
+                "completionTime INTEGER, " +  // New field for long completionTime
                 KEY_WEIGHT_REPS + " TEXT, " +
                 KEY_DURATIONS + " TEXT, " +
                 "exerciseNotes TEXT, " +
@@ -80,10 +89,24 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 KEY_WEIGHT_REPS_DAILY + " TEXT, " +
                 KEY_DURATIONS_DAILY + " TEXT, " +
                 KEY_DONE_TIME + " INTEGER, " +
-                "exerciseColour INTEGER, " + // Add exerciseColour column
+                "exerciseColour INTEGER, " +
+                "completed INTEGER, " +
+                "completionTime INTEGER, " +
                 "PRIMARY KEY (" + KEY_DATE + ", " + KEY_EXERCISE_NAME_DAILY + "))";
         db.execSQL(CREATE_DAILY_ACTIVITY_TABLE);
         // HERE
+
+        String CREATE_PLANNED_EXERCISES_TABLE = "CREATE TABLE " + TABLE_PLANNED_EXERCISES + " (" +
+                KEY_PLANNED_DATE + " TEXT, " +
+                KEY_PLANNED_EXERCISE_NAME + " TEXT, " +
+                KEY_PLANNED_SET_TYPE + " TEXT, " +
+                KEY_PLANNED_WEIGHT_REPS + " TEXT, " +
+                KEY_PLANNED_DURATIONS + " TEXT, " +
+                "categoryClr INTEGER, " + // Add categoryClr
+                "categoryName TEXT, " +  // Add categoryName
+                KEY_PLANNED_ADDED_TIME + " INTEGER, " +
+                "PRIMARY KEY (" + KEY_PLANNED_DATE + ", " + KEY_PLANNED_EXERCISE_NAME + "))";
+        db.execSQL(CREATE_PLANNED_EXERCISES_TABLE);
     }
 
     @Override
@@ -109,6 +132,27 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         if (oldVersion < 6) {
             db.execSQL("ALTER TABLE " + TABLE_DAILY_ACTIVITY + " ADD COLUMN exerciseColour INTEGER");
         }
+        if (oldVersion < 7) { // Assuming version 7 for the new fields
+            db.execSQL("ALTER TABLE " + TABLE_EXERCISE + " ADD COLUMN completed INTEGER DEFAULT 0");
+            db.execSQL("ALTER TABLE " + TABLE_EXERCISE + " ADD COLUMN completionTime INTEGER DEFAULT 0");
+            db.execSQL("ALTER TABLE " + TABLE_DAILY_ACTIVITY + " ADD COLUMN completed INTEGER DEFAULT 0");
+            db.execSQL("ALTER TABLE " + TABLE_DAILY_ACTIVITY + " ADD COLUMN completionTime INTEGER DEFAULT 0");
+        }
+        if (oldVersion < 8) { // Assuming the new version is 8
+            String CREATE_PLANNED_EXERCISES_TABLE = "CREATE TABLE " + TABLE_PLANNED_EXERCISES + " (" +
+                    KEY_PLANNED_DATE + " TEXT, " +
+                    KEY_PLANNED_EXERCISE_NAME + " TEXT, " +
+                    KEY_PLANNED_SET_TYPE + " TEXT, " +
+                    KEY_PLANNED_WEIGHT_REPS + " TEXT, " +
+                    KEY_PLANNED_DURATIONS + " TEXT, " +
+                    KEY_PLANNED_ADDED_TIME + " INTEGER, " +
+                    "PRIMARY KEY (" + KEY_PLANNED_DATE + ", " + KEY_PLANNED_EXERCISE_NAME + "))";
+            db.execSQL(CREATE_PLANNED_EXERCISES_TABLE);
+        }
+        if (oldVersion < 9) { // Assuming version 9 introduces these changes
+            db.execSQL("ALTER TABLE " + TABLE_PLANNED_EXERCISES + " ADD COLUMN categoryClr INTEGER DEFAULT -1");
+            db.execSQL("ALTER TABLE " + TABLE_PLANNED_EXERCISES + " ADD COLUMN categoryName TEXT DEFAULT ''");
+        }
     }
 
     // Methods to save and load daily exercises
@@ -124,6 +168,8 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         values.put(KEY_DURATIONS_DAILY, new JSONArray(exercise.getDurations()).toString());
         values.put(KEY_DONE_TIME, exercise.getDoneTime());
         values.put("exerciseColour", categoryClr);
+        values.put("completed", exercise.getCompleted() ? 1 : 0); // Save boolean as integer
+        values.put("completionTime", exercise.getCompletionTime()); // Save long
         db.insertWithOnConflict(TABLE_DAILY_ACTIVITY, null, values, SQLiteDatabase.CONFLICT_REPLACE);
     }
 
@@ -139,7 +185,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         List<Exercise> dailyExercises = new ArrayList<>();
 
         String query = "SELECT * FROM " + TABLE_DAILY_ACTIVITY +
-                " WHERE " + KEY_DATE + " = ? ORDER BY " + KEY_DONE_TIME + " ASC";
+                " WHERE " + KEY_DATE + " = ? ORDER BY " + "completionTime" + " ASC";
         Cursor cursor = db.rawQuery(query, new String[]{date});
 
         if (cursor != null && cursor.moveToFirst()) {
@@ -164,6 +210,12 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 exercise.setDoneTime(doneTime);
                 exercise.setCategoryClr(categoryClr);
                 exercise.setCategoryName(categoryName);
+
+                boolean completed = cursor.getInt(cursor.getColumnIndexOrThrow("completed")) == 1;
+                long completionTime = cursor.getLong(cursor.getColumnIndexOrThrow("completionTime"));
+
+                exercise.setCompleted(completed);
+                exercise.setCompletionTime(completionTime);
 
                 dailyExercises.add(exercise);
             } while (cursor.moveToNext());
@@ -241,6 +293,9 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                     exerciseValues.put("exerciseNotes", exercise.getExerciseNotes());
                     exerciseValues.put("doneTime", exercise.getDoneTime());
 
+                    exerciseValues.put("completed", exercise.getCompleted() ? 1 : 0); // Save boolean as integer
+                    exerciseValues.put("completionTime", exercise.getCompletionTime()); // Save long
+
                     db.insert(TABLE_EXERCISE, null, exerciseValues);
                 }
             }
@@ -301,6 +356,12 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 long doneTime = exerciseCursor.getLong(exerciseCursor.getColumnIndexOrThrow("doneTime"));
                 exercise.setDoneTime(doneTime);
 
+                boolean completed = exerciseCursor.getInt(exerciseCursor.getColumnIndexOrThrow("completed")) == 1;
+                long completionTime = exerciseCursor.getLong(exerciseCursor.getColumnIndexOrThrow("completionTime"));
+
+                exercise.setCompleted(completed);
+                exercise.setCompletionTime(completionTime);
+
                 if (categoryMap.containsKey(categoryName)) {
                     categoryMap.get(categoryName).addExercise(exercise);
                 }
@@ -352,6 +413,80 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
         return categoryColor;
     }
+
+    public void savePlannedExercise(String date, Exercise exercise) {
+        SQLiteDatabase db = getWritableDatabase();
+        ContentValues values = new ContentValues();
+        values.put(KEY_PLANNED_DATE, date);
+        values.put(KEY_PLANNED_EXERCISE_NAME, exercise.getName());
+        values.put(KEY_PLANNED_SET_TYPE, exercise.getSetType());
+        values.put(KEY_PLANNED_WEIGHT_REPS, new JSONArray(exercise.getWeightReps()).toString());
+        values.put(KEY_PLANNED_DURATIONS, new JSONArray(exercise.getDurations()).toString());
+        values.put("categoryClr", exercise.getCategoryClr()); // Save categoryClr
+        values.put("categoryName", exercise.getCategoryName()); // Save categoryName
+        values.put(KEY_PLANNED_ADDED_TIME, System.currentTimeMillis());
+
+        db.insertWithOnConflict(TABLE_PLANNED_EXERCISES, null, values, SQLiteDatabase.CONFLICT_REPLACE);
+    }
+
+    public void deletePlannedExercise(String date, String exerciseName) {
+        SQLiteDatabase db = getWritableDatabase();
+        db.delete(TABLE_PLANNED_EXERCISES,
+                KEY_PLANNED_DATE + " = ? AND " + KEY_PLANNED_EXERCISE_NAME + " = ?",
+                new String[]{date, exerciseName});
+    }
+
+    public List<Exercise> getPlannedExercises(String date) {
+        SQLiteDatabase db = getReadableDatabase();
+        List<Exercise> plannedExercises = new ArrayList<>();
+
+        String query = "SELECT * FROM " + TABLE_PLANNED_EXERCISES + " WHERE " + KEY_PLANNED_DATE + " = ? ORDER BY " + KEY_PLANNED_ADDED_TIME + " ASC";
+        Cursor cursor = db.rawQuery(query, new String[]{date});
+
+        if (cursor != null && cursor.moveToFirst()) {
+            do {
+                String exerciseName = cursor.getString(cursor.getColumnIndexOrThrow(KEY_PLANNED_EXERCISE_NAME));
+                String setType = cursor.getString(cursor.getColumnIndexOrThrow(KEY_PLANNED_SET_TYPE));
+                String weightRepsJson = cursor.getString(cursor.getColumnIndexOrThrow(KEY_PLANNED_WEIGHT_REPS));
+                String durationsJson = cursor.getString(cursor.getColumnIndexOrThrow(KEY_PLANNED_DURATIONS));
+                int categoryClr = cursor.getInt(cursor.getColumnIndexOrThrow("categoryClr"));
+                String categoryName = cursor.getString(cursor.getColumnIndexOrThrow("categoryName"));
+                long addedTime = cursor.getLong(cursor.getColumnIndexOrThrow(KEY_PLANNED_ADDED_TIME));
+
+                List<int[]> weightReps = parseWeightRepsFromJson(weightRepsJson);
+                List<Integer> durations = parseDurationsFromJson(durationsJson);
+
+                Exercise exercise = new Exercise(exerciseName, null, setType);
+                exercise.setWeightReps(weightReps);
+                exercise.setDurations(durations);
+                exercise.setCategoryClr(categoryClr); // Set categoryClr
+                exercise.setCategoryName(categoryName); // Set categoryName
+                exercise.setDoneTime(addedTime);
+
+                plannedExercises.add(exercise);
+            } while (cursor.moveToNext());
+            cursor.close();
+        }
+
+        return plannedExercises;
+    }
+
+    public void deletePlannedExercisesBeforeDate(String date) {
+        SQLiteDatabase db = getWritableDatabase();
+        try {
+            // Delete entries from PlannedExercises where the planned date is less than the specified date
+            String deleteQuery = "DELETE FROM " + TABLE_PLANNED_EXERCISES + " WHERE " + KEY_PLANNED_DATE + " < ?";
+            db.execSQL(deleteQuery, new String[]{date});
+            Log.i("DatabaseHelper", "Deleted planned exercises before date: " + date);
+        } catch (Exception e) {
+            Log.e("DatabaseHelper", "Error deleting planned exercises before date: " + date, e);
+        } finally {
+            db.close();
+        }
+    }
+
+
+
 
 
 }
