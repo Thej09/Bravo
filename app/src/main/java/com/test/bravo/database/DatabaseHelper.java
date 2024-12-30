@@ -23,7 +23,7 @@ import java.util.Map;
 public class DatabaseHelper extends SQLiteOpenHelper {
 
     private static final String DATABASE_NAME = "bravo.db";
-    private static final int DATABASE_VERSION = 9;
+    private static final int DATABASE_VERSION = 11;
 
     // Table and Column Definitions
     private static final String TABLE_CATEGORY = "Category";
@@ -55,6 +55,12 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     private static final String KEY_PLANNED_WEIGHT_REPS = "weight_reps";
     private static final String KEY_PLANNED_DURATIONS = "durations";
     private static final String KEY_PLANNED_ADDED_TIME = "added_time";
+
+    private static final String TABLE_ROUTINES = "routines";
+    private static final String KEY_ROUTINE_NAME = "routine_name";
+    private static final String KEY_EXERCISE_DATA = "exercise_data";
+
+
 
     public DatabaseHelper(Context context) {
         super(context, DATABASE_NAME, null, DATABASE_VERSION);
@@ -107,6 +113,13 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 KEY_PLANNED_ADDED_TIME + " INTEGER, " +
                 "PRIMARY KEY (" + KEY_PLANNED_DATE + ", " + KEY_PLANNED_EXERCISE_NAME + "))";
         db.execSQL(CREATE_PLANNED_EXERCISES_TABLE);
+
+        String CREATE_ROUTINES_TABLE = "CREATE TABLE IF NOT EXISTS " + TABLE_ROUTINES + " (" +
+                "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                KEY_ROUTINE_NAME + " TEXT NOT NULL UNIQUE, " + // Add UNIQUE constraint
+                KEY_EXERCISE_DATA + " TEXT NOT NULL" +
+                ")";
+        db.execSQL(CREATE_ROUTINES_TABLE);
     }
 
     @Override
@@ -152,6 +165,26 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         if (oldVersion < 9) { // Assuming version 9 introduces these changes
             db.execSQL("ALTER TABLE " + TABLE_PLANNED_EXERCISES + " ADD COLUMN categoryClr INTEGER DEFAULT -1");
             db.execSQL("ALTER TABLE " + TABLE_PLANNED_EXERCISES + " ADD COLUMN categoryName TEXT DEFAULT ''");
+        }
+        if (oldVersion < 10) { // Assuming version 10 introduces the routines table
+            String CREATE_ROUTINES_TABLE = "CREATE TABLE IF NOT EXISTS " + TABLE_ROUTINES + " (" +
+                    "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                    KEY_ROUTINE_NAME + " TEXT NOT NULL, " +
+                    KEY_EXERCISE_DATA + " TEXT NOT NULL" +
+                    ")";
+            db.execSQL(CREATE_ROUTINES_TABLE);
+        }
+        if (oldVersion < 11) {
+            db.execSQL("ALTER TABLE " + TABLE_ROUTINES + " RENAME TO " + TABLE_ROUTINES + "_old");
+            String CREATE_ROUTINES_TABLE = "CREATE TABLE " + TABLE_ROUTINES + " (" +
+                    "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                    KEY_ROUTINE_NAME + " TEXT NOT NULL UNIQUE, " + // Add UNIQUE constraint
+                    KEY_EXERCISE_DATA + " TEXT NOT NULL" +
+                    ")";
+            db.execSQL(CREATE_ROUTINES_TABLE);
+            db.execSQL("INSERT INTO " + TABLE_ROUTINES + " (id, " + KEY_ROUTINE_NAME + ", " + KEY_EXERCISE_DATA + ") " +
+                    "SELECT id, " + KEY_ROUTINE_NAME + ", " + KEY_EXERCISE_DATA + " FROM " + TABLE_ROUTINES + "_old");
+            db.execSQL("DROP TABLE " + TABLE_ROUTINES + "_old");
         }
     }
 
@@ -399,20 +432,6 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         return list;
     }
 
-    public int getCatColour(String categoryName) {
-        SQLiteDatabase db = getReadableDatabase();
-        int categoryColor = -1; // Default value if no category is found
-
-        String query = "SELECT " + KEY_CATEGORY_COLOR + " FROM " + TABLE_CATEGORY + " WHERE " + KEY_CATEGORY_NAME + " = ?";
-        Cursor cursor = db.rawQuery(query, new String[]{categoryName});
-
-        if (cursor != null && cursor.moveToFirst()) {
-            categoryColor = cursor.getInt(cursor.getColumnIndexOrThrow(KEY_CATEGORY_COLOR));
-            cursor.close();
-        }
-
-        return categoryColor;
-    }
 
     public void savePlannedExercise(String date, Exercise exercise) {
         SQLiteDatabase db = getWritableDatabase();
@@ -485,8 +504,101 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         }
     }
 
+    // Routine functions
 
+    public void saveRoutine(String routineName, List<String[]> exercises) {
+        SQLiteDatabase db = getWritableDatabase();
+        ContentValues values = new ContentValues();
+        values.put(KEY_ROUTINE_NAME, routineName);
+        values.put(KEY_EXERCISE_DATA, serializeRoutineExercises(exercises)); // Serialize exercises to a string
+        db.insertWithOnConflict(TABLE_ROUTINES, null, values, SQLiteDatabase.CONFLICT_REPLACE);
+    }
 
+    public List<String[]> loadRoutine(String routineName) {
+        SQLiteDatabase db = getReadableDatabase();
+        String query = "SELECT " + KEY_EXERCISE_DATA + " FROM " + TABLE_ROUTINES +
+                " WHERE " + KEY_ROUTINE_NAME + " = ?";
+        Cursor cursor = db.rawQuery(query, new String[]{routineName});
+
+        if (cursor != null && cursor.moveToFirst()) {
+            String serialized = cursor.getString(cursor.getColumnIndexOrThrow(KEY_EXERCISE_DATA));
+            cursor.close();
+            return deserializeRoutineExercises(serialized); // Deserialize string back to list of tuples
+        }
+        return new ArrayList<>(); // Return empty list if routine not found
+    }
+
+    public void deleteRoutine(String routineName) {
+        SQLiteDatabase db = getWritableDatabase();
+        db.delete(TABLE_ROUTINES, KEY_ROUTINE_NAME + " = ?", new String[]{routineName});
+    }
+
+    private String serializeRoutineExercises(List<String[]> exercises) {
+        StringBuilder builder = new StringBuilder();
+        for (String[] pair : exercises) {
+            if (builder.length() > 0) {
+                builder.append(",");
+            }
+            builder.append(pair[0]).append(":").append(pair[1]); // Format: exerciseName:categoryName
+        }
+        return builder.toString();
+    }
+
+    private List<String[]> deserializeRoutineExercises(String serialized) {
+        List<String[]> exercises = new ArrayList<>();
+        if (serialized == null || serialized.isEmpty()) return exercises;
+
+        String[] pairs = serialized.split(",");
+        for (String pair : pairs) {
+            String[] parts = pair.split(":");
+            if (parts.length == 2) {
+                exercises.add(parts); // Add as (exerciseName, categoryName)
+            }
+        }
+        return exercises;
+    }
+
+    public void clearRoutinesTable() {
+        SQLiteDatabase db = getWritableDatabase();
+        try {
+            db.beginTransaction();
+            db.delete(TABLE_ROUTINES, null, null); // Deletes all rows in the routines table
+            db.setTransactionSuccessful();
+            Log.i("DatabaseHelper", "Routines table cleared successfully.");
+        } catch (Exception e) {
+            Log.e("DatabaseHelper", "Error while clearing the routines table.", e);
+        } finally {
+            db.endTransaction();
+        }
+    }
+
+    public boolean checkIfRoutineExists(String routineName) {
+        SQLiteDatabase db = getReadableDatabase();
+        Cursor cursor = null;
+        try {
+            String query = "SELECT 1 FROM " + TABLE_ROUTINES + " WHERE " + KEY_ROUTINE_NAME + " = ?";
+            cursor = db.rawQuery(query, new String[]{routineName});
+            return cursor != null && cursor.moveToFirst();
+        } finally {
+            if (cursor != null) cursor.close();
+        }
+    }
+
+    public List<String> getAllRoutineNames() {
+        List<String> routineNames = new ArrayList<>();
+        SQLiteDatabase db = getReadableDatabase();
+        Cursor cursor = db.query("routines", new String[]{"routine_name"}, null, null, null, null, null);
+
+        if (cursor != null && cursor.moveToFirst()) {
+            do {
+                String routineName = cursor.getString(cursor.getColumnIndexOrThrow("routine_name"));
+                routineNames.add(routineName);
+            } while (cursor.moveToNext());
+            cursor.close();
+        }
+
+        return routineNames;
+    }
 
 
 }

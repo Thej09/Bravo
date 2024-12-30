@@ -16,4 +16,9 @@
         android:icon="@drawable/baseline_calculate_24"
         android:title="@string/title_calculator" />
 
+    <item
+        android:id="@+id/navigation_progress"
+        android:icon="@drawable/baseline_trending_up_24"
+        android:title="Progress" />
+
 </menu>

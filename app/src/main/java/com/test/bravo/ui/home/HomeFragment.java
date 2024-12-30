@@ -75,6 +75,7 @@ import android.widget.AdapterView;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.EditText;
+import android.widget.FrameLayout;
 import android.widget.GridLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -288,6 +289,73 @@ public class HomeFragment extends Fragment {
             }
         });
 
+        ImageView todaysExercisesMenu = root.findViewById(R.id.todays_exercises_menu);
+        todaysExercisesMenu.setOnClickListener(v -> {
+            // Create a PopupMenu
+
+            if (!(isDateGreater(currentDateGlobal, selectedDateGlobal))) {
+
+                PopupMenu popupMenu = new PopupMenu(requireContext(), todaysExercisesMenu);
+
+                // Add menu items
+                popupMenu.getMenu().add("Add Exercise");
+                popupMenu.getMenu().add("Clear Exercises");
+                popupMenu.getMenu().add("Save Routine");
+                popupMenu.getMenu().add("Load Routine");
+                popupMenu.getMenu().add("Delete Routine");
+
+                // Set a click listener for menu item clicks
+                popupMenu.setOnMenuItemClickListener(item -> {
+                    String selectedOption = item.getTitle().toString();
+
+                    switch (selectedOption) {
+                        case "Add Exercise":
+                            // Call the method to handle adding an exercise
+                            //showAddExerciseDialog(null, 0); // Pass appropriate arguments
+                            Toast.makeText(requireContext(), "Add Exercise", Toast.LENGTH_SHORT).show();
+                            break;
+
+                        case "Clear Exercises":
+                            // Call the method to clear all exercises
+                            clearExercises();
+//                            Toast.makeText(requireContext(), "All exercises cleared!", Toast.LENGTH_SHORT).show();
+                            break;
+
+                        case "Save Routine":
+                            // Call the method to save the routine
+                            showSaveRoutineDialog();
+                            break;
+
+                        case "Load Routine":
+                            // Call the method to load a routine
+                            //loadRoutine();
+                            List<String> routineNames = databaseHelper.getAllRoutineNames();
+                            if (routineNames.isEmpty()) {
+                                Toast.makeText(requireContext(), "There are no saved routines!", Toast.LENGTH_SHORT).show();
+                            } else {
+                                showLoadRoutineDialog(routineNames);
+                            }
+                            break;
+
+                        case "Delete Routine":
+                            // Call the method to delete a routine
+                            //deleteRoutine();
+                            deleteRoutine();
+//                            Toast.makeText(requireContext(), "Deleted Routine!", Toast.LENGTH_SHORT).show();
+                            break;
+
+                        default:
+                            return false;
+                    }
+
+                    return true;
+                });
+
+                // Show the menu
+                popupMenu.show();
+            }
+        });
+
         return root;
     }
 
@@ -356,6 +424,212 @@ public class HomeFragment extends Fragment {
                 addExerciseToParent(exercise, todoContainer);
             }
         }
+    }
+
+    private void deleteRoutine() {
+        // Get all routine names from the database
+        List<String> routineNames = databaseHelper.getAllRoutineNames();
+
+        if (routineNames.isEmpty()) {
+            Toast.makeText(requireContext(), "No routines available to delete.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(requireContext());
+        builder.setTitle("Select a Routine to Delete");
+
+        CharSequence[] routinesArray = routineNames.toArray(new CharSequence[0]);
+
+        builder.setItems(routinesArray, (dialog, which) -> {
+            // Get the selected routine name
+            String selectedRoutine = routineNames.get(which);
+
+            // Show a confirmation dialog
+            new AlertDialog.Builder(requireContext())
+                    .setTitle("Delete Routine")
+                    .setMessage("Are you sure you want to delete the routine \"" + selectedRoutine + "\"?")
+                    .setPositiveButton("Yes", (confirmDialog, confirmWhich) -> {
+                        // Delete the selected routine
+                        databaseHelper.deleteRoutine(selectedRoutine);
+                        Toast.makeText(requireContext(), "Routine \"" + selectedRoutine + "\" deleted.", Toast.LENGTH_SHORT).show();
+                    })
+                    .setNegativeButton("Cancel", null)
+                    .show();
+        });
+
+        builder.setNegativeButton("Cancel", null);
+        builder.show();
+    }
+
+
+    private void saveRoutine(String routineName){
+        List<String[]> formattedExercises = convertExercisesToList(completedExercises);
+        databaseHelper.saveRoutine(routineName, formattedExercises);
+        for (String[] pair : formattedExercises) {
+            Log.d("PrintTAG", "[" + pair[0] + ", " + pair[1] + "]");
+        }
+    }
+
+    private void showSaveRoutineDialog() {
+        // Create an AlertDialog builder
+        AlertDialog.Builder builder = new AlertDialog.Builder(requireContext());
+        builder.setTitle("Save Routine");
+
+        // Create an EditText for the user to input the routine name
+        FrameLayout frameLayout = new FrameLayout(requireContext());
+        FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.WRAP_CONTENT,
+                FrameLayout.LayoutParams.WRAP_CONTENT
+        );
+        params.setMargins(10, 0, 10, 0); // Add margins to center it more
+        params.gravity = Gravity.CENTER_HORIZONTAL; // Align horizontally in the dialog
+        final EditText input = new EditText(requireContext());
+        input.setHint("Enter routine name");
+        input.setLayoutParams(params);
+
+        // Add the EditText to the FrameLayout
+        frameLayout.addView(input);
+        builder.setView(frameLayout);
+
+        // Set "OK" button behavior
+        builder.setPositiveButton("OK", (dialog, which) -> {
+            String routineName = input.getText().toString().trim();
+
+            if (routineName.isEmpty()) {
+                Toast.makeText(requireContext(), "Routine name cannot be empty!", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            // Check if a routine with the same name exists
+
+            boolean routineExists = databaseHelper.checkIfRoutineExists(routineName);
+
+            if (routineExists) {
+                // Show confirmation to overwrite
+                new AlertDialog.Builder(requireContext())
+                        .setTitle("Routine Already Exists")
+                        .setMessage("A routine with this name already exists. Would you like to overwrite it?")
+                        .setPositiveButton("Yes", (confirmDialog, confirmWhich) -> {
+                            saveRoutine(routineName);
+                            Toast.makeText(requireContext(), "Routine overwritten successfully!", Toast.LENGTH_SHORT).show();
+                        })
+                        .setNegativeButton("No", null)
+                        .show();
+            } else {
+                // Save the new routine
+                saveRoutine(routineName);
+                Toast.makeText(requireContext(), "Routine saved successfully!", Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        // Set "Cancel" button behavior
+        builder.setNegativeButton("Cancel", null);
+
+        // Show the dialog
+        builder.show();
+    }
+
+    private void showLoadRoutineDialog(List<String> routineNames) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(requireContext());
+        builder.setTitle("Load Routine");
+
+        ScrollView scrollView = new ScrollView(requireContext());
+        LinearLayout layout = new LinearLayout(requireContext());
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setPadding(50, 20, 50, 20);
+
+        // Create the dialog here so it's accessible inside the OnClickListener
+        AlertDialog dialog = builder.create();
+
+        for (String routineName : routineNames) {
+            TextView routineTextView = new TextView(requireContext());
+            routineTextView.setText(routineName);
+            routineTextView.setTextSize(16);
+            routineTextView.setPadding(10, 10, 10, 10);
+            routineTextView.setOnClickListener(v -> {
+                // On selecting a routine
+                dialog.dismiss();
+                 loadRoutine(routineName);
+                Toast.makeText(requireContext(), "Loaded Routine: " + routineName, Toast.LENGTH_SHORT).show();
+            });
+            layout.addView(routineTextView);
+        }
+        scrollView.addView(layout);
+        builder.setView(scrollView);
+
+        builder.setNegativeButton("Cancel", null);
+        dialog.setView(scrollView); // Set the scrollView content
+        dialog.show();
+    }
+
+    private void loadRoutine(String routineName) {
+        // Get the routine exercises from the database
+        List<String[]> routineExercises = databaseHelper.loadRoutine(routineName);
+
+        if (routineExercises.isEmpty()) {
+            Toast.makeText(requireContext(), "Routine not found!", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+
+        // Loop through the routine's exercises
+        for (String[] exerciseCategory : routineExercises) {
+            String exerciseName = exerciseCategory[0]; // Exercise name
+            String categoryName = exerciseCategory[1]; // Category name
+
+            // Check if the category exists in the category map
+            if (categoryMap.containsKey(categoryName)) {
+                Category category = categoryMap.get(categoryName);
+
+                Exercise curExercise = category.getExercise(exerciseName);
+                if (curExercise != null){
+                    if (!curExercise.getDoneToday()){
+                        completedExercises.add(curExercise);
+                        curExercise.setDoneToday(true);
+                        databaseHelper.savePlannedExercise(selectedDateGlobal, curExercise);
+                    }
+                }
+            }
+        }
+
+
+        refreshTodoList(todoContainer, completedExercises);
+        loadViewFromMap();
+        if (currentDateGlobal.equals(selectedDateGlobal)) {
+            databaseHelper.saveDataToDatabase(categoryMap);
+        }
+    }
+
+    private void clearExercises() {
+
+        if (completedExercises.isEmpty()) {
+            Toast.makeText(requireContext(), "No completed exercises to clear.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+
+        for (Exercise exercise : completedExercises) {
+            // Set doneToday to false
+            exercise.setDoneToday(false);
+
+
+            databaseHelper.deletePlannedExercise(selectedDateGlobal, exercise.getName());
+        }
+
+
+        completedExercises.clear();
+
+
+        if (currentDateGlobal.equals(selectedDateGlobal)) {
+            databaseHelper.saveDataToDatabase(categoryMap);
+        }
+
+
+        refreshTodoList(todoContainer, completedExercises);
+        loadViewFromMap();
+
+        // Notify the user
+        Toast.makeText(requireContext(), "Exercises cleared successfully!", Toast.LENGTH_SHORT).show();
     }
 
     private void addExerciseToParent(Exercise exercise, LinearLayout parent) {
@@ -2494,6 +2768,24 @@ public class HomeFragment extends Fragment {
         }
         return input;
     }
+
+    public List<String[]> convertExercisesToList(List<Exercise> exercises) {
+        List<String[]> formattedExercises = new ArrayList<>();
+
+        for (Exercise exercise : exercises) {
+            String exerciseName = exercise.getName();
+            String categoryName = exercise.getCategoryName();
+
+            // Add the exercise name and category name as a String[] pair
+            formattedExercises.add(new String[]{exerciseName, categoryName});
+        }
+
+        return formattedExercises;
+    }
+
+
+
+
 
     @Override
     public void onPause() {

@@ -13,9 +13,9 @@
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
-        android:icon="@drawable/bravo"
+        android:icon="@drawable/trident"
         android:label="Bravo"
-        android:roundIcon="@drawable/bravo"
+        android:roundIcon="@drawable/trident"
         android:supportsRtl="true"
         android:theme="@style/Theme.Bravo1"
         tools:targetApi="31">

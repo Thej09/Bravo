@@ -68,6 +68,8 @@
             android:rowCount="5"
             android:paddingTop="2dp"
             android:orientation="horizontal"
+            android:focusable="true"
+            android:focusableInTouchMode="true"
             android:useDefaultMargins="true">
         </GridLayout>
 

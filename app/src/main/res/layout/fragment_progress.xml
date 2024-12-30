@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".ui.progress.ProgressFragment">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <!-- TextView for Week Streak -->
+        <TextView
+            android:id="@+id/text_week_streak"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="x Week Streak!"
+            android:textSize="24sp"
+            android:textStyle="bold"
+            android:layout_gravity="center_horizontal"
+            android:paddingBottom="16dp" />
+
+        <!-- FrameLayout to Overlay ImageViews -->
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal">
+
+            <!-- Base ImageView for Muscle Map -->
+            <ImageView
+                android:id="@+id/image_muscle_map"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:src="@drawable/musclemap"
+                android:contentDescription="muscleMap"
+                android:scaleType="fitCenter"
+                android:adjustViewBounds="true" />
+
+            <!-- Overlay ImageView for Upper Abs -->
+            <ImageView
+                android:id="@+id/image_upper_abs"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:src="@drawable/upperabs"
+                android:contentDescription="upperAbs"
+                android:scaleType="fitCenter"
+                android:adjustViewBounds="true"
+                android:alpha="0.5" /> <!-- Set initial alpha -->
+
+        </FrameLayout>
+    </LinearLayout>
+</ScrollView>

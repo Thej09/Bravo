@@ -2,6 +2,11 @@ package com.test.bravo.ui.dashboard;
 
 import static java.lang.Math.max;
 
+import android.animation.Animator;
+import android.animation.AnimatorListenerAdapter;
+import android.animation.AnimatorSet;
+import android.animation.ObjectAnimator;
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
@@ -11,8 +16,11 @@ import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.text.TextPaint;
 import android.text.TextUtils;
+import android.util.Log;
 import android.util.TypedValue;
+import android.view.GestureDetector;
 import android.view.LayoutInflater;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.GridLayout;
@@ -50,6 +58,7 @@ public class DashboardFragment extends Fragment {
 
     private FragmentDashboardBinding binding;
     private int changeMonth = 0;
+    private GestureDetector gestureDetector;
 
     private final int[] availableColors = {
             Color.parseColor("#FD4500"),
@@ -97,26 +106,51 @@ public class DashboardFragment extends Fragment {
         updateCalendar(calendarGrid);
 
         left_arrow.setOnClickListener(v -> {
-            if (changeMonth == 1) {
-                changeMonth--;
-                left_arrow.setColorFilter(Color.GRAY);
-                right_arrow.setColorFilter(null);
-                updateCalendar(calendarGrid);
-            }
+            decrementMonth(calendarGrid, left_arrow, right_arrow);
         });
 
         right_arrow.setOnClickListener(v -> {
-            if (changeMonth == 0) {
-                changeMonth++;
-                right_arrow.setColorFilter(Color.GRAY);
-                left_arrow.setColorFilter(null);
-                updateCalendar(calendarGrid);
+            incrementMonth(calendarGrid, left_arrow, right_arrow);
+        });
+
+        gestureDetector = new GestureDetector(getContext(), new GestureDetector.SimpleOnGestureListener() {
+            @Override
+            public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
+                float deltaX = e2.getX() - e1.getX();
+                if (Math.abs(deltaX) > 100 && Math.abs(velocityX) > 200) {
+                    if (deltaX > 0) {
+                        Log.e("GestureTag", "Right swipe detected");
+                        decrementMonth(binding.calendarGrid, binding.leftArrow, binding.rightArrow);
+                    } else {
+                        Log.e("GestureTag", "Left swipe detected");
+                        incrementMonth(binding.calendarGrid, binding.leftArrow, binding.rightArrow);
+                    }
+                    return true; // Indicate swipe handled
+                }
+                return false; // Indicate no swipe detected
             }
+
+            @Override
+            public boolean onSingleTapUp(MotionEvent e) {
+                // Allow simple tap to trigger clicks
+                return false;
+            }
+        });
+
+        calendarGrid.setOnTouchListener((v, event) -> {
+            boolean gestureHandled = gestureDetector.onTouchEvent(event);
+            if (gestureHandled) {
+                return true; // GestureDetector handled the event
+            }
+
+            // Pass touch events to children if it's not a swipe
+            return false;
         });
 
         return root;
     }
 
+    @SuppressLint("ClickableViewAccessibility")
     private void updateCalendar(GridLayout calendarGrid) {
         // Clear the grid before updating
         calendarGrid.removeAllViews();
@@ -182,6 +216,8 @@ public class DashboardFragment extends Fragment {
                 dateLabel.setTextSize(14);
                 dateLabel.setTextColor(Color.WHITE);
                 dateLabel.setGravity(View.TEXT_ALIGNMENT_CENTER);
+                dateLabel.setFocusable(false);
+                dateLabel.setClickable(false);
 
                 // Highlight the current day
                 if (formattedDate.equals(new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
@@ -217,6 +253,7 @@ public class DashboardFragment extends Fragment {
                         ? databaseHelper.getDailyActivity(formattedDate)
                         : databaseHelper.getPlannedExercises(formattedDate);
 
+                //if (!(afterDate && changeMonth == 0)) {
                 if (exercises != null) {
                     for (Exercise exercise : exercises) {
                         TextView exerciseView = new TextView(getContext());
@@ -247,11 +284,34 @@ public class DashboardFragment extends Fragment {
                         exerciseParams.setMargins(0, 0, 0, 0);
                         exerciseView.setLayoutParams(exerciseParams);
 
+                        // Date label
+                        exerciseView.setFocusable(false);
+                        exerciseView.setClickable(false);
+
                         dayCellLayout.addView(exerciseView);
                     }
                 }
+                //}
 
-                dayCellLayout.setOnClickListener(v -> showExercisePopup(formattedDate, exercises));
+                dayCellLayout.setOnTouchListener((v, event) -> {
+                    boolean isSwipe = gestureDetector.onTouchEvent(event); // Detect swipe gestures
+
+                    // Only trigger `performClick()` for simple taps (not swipes)
+                    if (isSwipe) {
+                        Log.d("GestureDebug", "Swipe detected on dayCellLayout");
+                    } else if (event.getAction() == MotionEvent.ACTION_UP) {
+                        Log.d("GestureDebug", "Tap detected on dayCellLayout");
+                        Log.e("DayCell", "DayCell clicked for date: " + formattedDate);
+//                        showExercisePopup(formattedDate, exercises);
+                    }
+
+                    return isSwipe; // Return true to consume swipe gestures, false for normal clicks
+                });
+
+                dayCellLayout.setOnClickListener(v -> {
+                    Log.e("DayCell", "DayCell clicked for date: " + formattedDate);
+                    showExercisePopup(formattedDate, exercises);
+                });
 
                 calendarGrid.addView(dayCellLayout);
 
@@ -421,6 +481,148 @@ public class DashboardFragment extends Fragment {
         builder.show();
     }
 
+    private void incrementMonth(GridLayout calendarGrid, ImageView left_arrow, ImageView right_arrow) {
+        if (changeMonth == 0) {
+            changeMonth++;
+            left_arrow.setColorFilter(null);
+            right_arrow.setColorFilter(Color.GRAY);
+            animateCalendarChange(calendarGrid, true);
+        }
+    }
+
+    private void decrementMonth(GridLayout calendarGrid, ImageView left_arrow, ImageView right_arrow) {
+        if (changeMonth == 1) {
+            changeMonth--;
+            right_arrow.setColorFilter(null);
+            left_arrow.setColorFilter(Color.GRAY);
+            animateCalendarChange(calendarGrid, false);
+        }
+    }
+
+    private void animateCalendarChange(GridLayout calendarGrid, boolean isForward) {
+        // Create translation animation values
+        float translationX = isForward ? calendarGrid.getWidth() : -calendarGrid.getWidth();
+
+        // Create a temporary copy of the calendar grid for the slide-out animation
+        GridLayout tempCalendarGrid = new GridLayout(calendarGrid.getContext());
+        tempCalendarGrid.setLayoutParams(calendarGrid.getLayoutParams());
+        tempCalendarGrid.setId(View.generateViewId());
+        tempCalendarGrid.setColumnCount(calendarGrid.getColumnCount());
+        tempCalendarGrid.setRowCount(calendarGrid.getRowCount());
+
+        // Copy child views from the original calendar grid to the temporary one
+        for (int i = 0; i < calendarGrid.getChildCount(); i++) {
+            View child = calendarGrid.getChildAt(i);
+            if (child != null) {
+                View clone = cloneView(child);
+                tempCalendarGrid.addView(clone, child.getLayoutParams());
+            }
+        }
+
+        // Add the temporary calendar grid to the parent layout
+        ViewGroup parent = (ViewGroup) calendarGrid.getParent();
+        parent.addView(tempCalendarGrid);
+
+        // Align the vertical position of tempCalendarGrid with calendarGrid
+//        tempCalendarGrid.setY(calendarGrid.getHeight()); // Align Y position
+        tempCalendarGrid.setY(-calendarGrid.getHeight() + 6);
+        tempCalendarGrid.setTranslationX(0); // Start at the original position
+
+        // Move the new calendarGrid to the sliding-in position
+        calendarGrid.setTranslationX(translationX);
+
+        // Update the actual calendar grid with new data
+        updateCalendar(calendarGrid);
+
+        // Prepare animations
+        ObjectAnimator slideOut = ObjectAnimator.ofFloat(tempCalendarGrid, "translationX", 0, -translationX);
+        ObjectAnimator slideIn = ObjectAnimator.ofFloat(calendarGrid, "translationX", translationX, 0);
+
+        // Set animation durations
+        slideOut.setDuration(450); // Slide-out duration
+        slideIn.setDuration(450); // Slide-in duration
+        slideIn.setStartDelay(0); // Start slide-in halfway through slide-out
+
+        // Start animations together with staggered timing
+        AnimatorSet animatorSet = new AnimatorSet();
+        animatorSet.playTogether(slideOut, slideIn);
+        animatorSet.addListener(new AnimatorListenerAdapter() {
+            @Override
+            public void onAnimationEnd(Animator animation) {
+                // Remove the temporary calendar grid after the animation ends
+                parent.removeView(tempCalendarGrid);
+            }
+        });
+
+        animatorSet.start();
+    }
+
+    private View cloneView(View original) {
+        if (original instanceof TextView) {
+            TextView originalText = (TextView) original;
+            TextView clone = new TextView(original.getContext());
+            clone.setText(originalText.getText());
+            clone.setTextSize(originalText.getTextSize() / originalText.getContext().getResources().getDisplayMetrics().scaledDensity); // Convert pixel size to sp
+            clone.setTextColor(originalText.getTextColors());
+            clone.setGravity(originalText.getGravity());
+            clone.setBackground(originalText.getBackground());
+            clone.setLayoutParams(originalText.getLayoutParams());
+            clone.setPadding(
+                    originalText.getPaddingLeft(),
+                    originalText.getPaddingTop(),
+                    originalText.getPaddingRight(),
+                    originalText.getPaddingBottom()
+            );
+            return clone;
+        } else if (original instanceof LinearLayout) {
+            LinearLayout originalLayout = (LinearLayout) original;
+            LinearLayout clone = new LinearLayout(original.getContext());
+            clone.setOrientation(originalLayout.getOrientation());
+            clone.setLayoutParams(originalLayout.getLayoutParams());
+            clone.setBackground(originalLayout.getBackground());
+            clone.setPadding(
+                    originalLayout.getPaddingLeft(),
+                    originalLayout.getPaddingTop(),
+                    originalLayout.getPaddingRight(),
+                    originalLayout.getPaddingBottom()
+            );
+
+            // Clone each child view recursively
+            for (int i = 0; i < originalLayout.getChildCount(); i++) {
+                View child = originalLayout.getChildAt(i);
+                View clonedChild = cloneView(child);
+                clone.addView(clonedChild);
+            }
+            return clone;
+        } else if (original instanceof GridLayout) {
+            GridLayout originalGrid = (GridLayout) original;
+            GridLayout clone = new GridLayout(original.getContext());
+            clone.setLayoutParams(originalGrid.getLayoutParams());
+            clone.setColumnCount(originalGrid.getColumnCount());
+            clone.setRowCount(originalGrid.getRowCount());
+            clone.setBackground(originalGrid.getBackground());
+            clone.setPadding(
+                    originalGrid.getPaddingLeft(),
+                    originalGrid.getPaddingTop(),
+                    originalGrid.getPaddingRight(),
+                    originalGrid.getPaddingBottom()
+            );
+
+            // Clone each child view recursively
+            for (int i = 0; i < originalGrid.getChildCount(); i++) {
+                View child = originalGrid.getChildAt(i);
+                View clonedChild = cloneView(child);
+                clone.addView(clonedChild, originalGrid.getLayoutParams());
+            }
+            return clone;
+        } else {
+            // Handle generic views
+            View clone = new View(original.getContext());
+            clone.setLayoutParams(original.getLayoutParams());
+            clone.setBackground(original.getBackground());
+            return clone;
+        }
+    }
 
     @Override
     public void onDestroyView() {
