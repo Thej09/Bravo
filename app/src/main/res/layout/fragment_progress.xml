@@ -49,7 +49,151 @@
                 android:contentDescription="upperAbs"
                 android:scaleType="fitCenter"
                 android:adjustViewBounds="true"
-                android:alpha="0.5" /> <!-- Set initial alpha -->
+                android:alpha="0.5" />
+            <ImageView
+                android:id="@+id/image_lower_abs"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:src="@drawable/lowerabs"
+                android:contentDescription="lowerabs"
+                android:scaleType="fitCenter"
+                android:adjustViewBounds="true"
+                android:alpha="0.5" />
+            <ImageView
+                android:id="@+id/image_chest"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:src="@drawable/chest"
+                android:contentDescription="chest"
+                android:scaleType="fitCenter"
+                android:adjustViewBounds="true"
+                android:alpha="0.5" />
+            <ImageView
+                android:id="@+id/image_biceps"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:src="@drawable/biceps"
+                android:contentDescription="biceps"
+                android:scaleType="fitCenter"
+                android:adjustViewBounds="true"
+                android:alpha="0.5" />
+            <ImageView
+                android:id="@+id/image_triceps"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:src="@drawable/triceps"
+                android:contentDescription="triceps"
+                android:scaleType="fitCenter"
+                android:adjustViewBounds="true"
+                android:alpha="0.5" />
+            <ImageView
+                android:id="@+id/image_quads"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:src="@drawable/quads"
+                android:contentDescription="quads"
+                android:scaleType="fitCenter"
+                android:adjustViewBounds="true"
+                android:alpha="0.5" />
+            <ImageView
+                android:id="@+id/image_hamstrings"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:src="@drawable/hamstrings"
+                android:contentDescription="hamstrings"
+                android:scaleType="fitCenter"
+                android:adjustViewBounds="true"
+                android:alpha="0.5" />
+            <ImageView
+                android:id="@+id/image_glutes"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:src="@drawable/glutes"
+                android:contentDescription="glutes"
+                android:scaleType="fitCenter"
+                android:adjustViewBounds="true"
+                android:alpha="0.5" />
+            <ImageView
+                android:id="@+id/image_traps"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:src="@drawable/traps"
+                android:contentDescription="traps"
+                android:scaleType="fitCenter"
+                android:adjustViewBounds="true"
+                android:alpha="0.5" />
+            <ImageView
+                android:id="@+id/image_obliques"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:src="@drawable/obliques"
+                android:contentDescription="obliques"
+                android:scaleType="fitCenter"
+                android:adjustViewBounds="true"
+                android:alpha="0.5" />
+            <ImageView
+                android:id="@+id/image_lower_back"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:src="@drawable/lowerback"
+                android:contentDescription="lowerback"
+                android:scaleType="fitCenter"
+                android:adjustViewBounds="true"
+                android:alpha="0.5" />
+            <ImageView
+                android:id="@+id/image_upper_back"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:src="@drawable/upperback"
+                android:contentDescription="upperback"
+                android:scaleType="fitCenter"
+                android:adjustViewBounds="true"
+                android:alpha="0.5" />
+            <ImageView
+                android:id="@+id/image_lats"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:src="@drawable/lats"
+                android:contentDescription="lats"
+                android:scaleType="fitCenter"
+                android:adjustViewBounds="true"
+                android:alpha="0.5" />
+            <ImageView
+                android:id="@+id/image_shoulders"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:src="@drawable/shoulders"
+                android:contentDescription="shoulders"
+                android:scaleType="fitCenter"
+                android:adjustViewBounds="true"
+                android:alpha="0.5" />
+            <ImageView
+                android:id="@+id/image_calves"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:src="@drawable/calves"
+                android:contentDescription="calves"
+                android:scaleType="fitCenter"
+                android:adjustViewBounds="true"
+                android:alpha="0.5" />
+            <ImageView
+                android:id="@+id/image_forearms"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:src="@drawable/forearms"
+                android:contentDescription="forearms"
+                android:scaleType="fitCenter"
+                android:adjustViewBounds="true"
+                android:alpha="0.5" />
+            <ImageView
+                android:id="@+id/image_adductors"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:src="@drawable/adductors"
+                android:contentDescription="adductors"
+                android:scaleType="fitCenter"
+                android:adjustViewBounds="true"
+                android:alpha="0.5" />
 
         </FrameLayout>
     </LinearLayout>
