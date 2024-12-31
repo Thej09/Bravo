@@ -13,7 +13,9 @@ import com.test.bravo.model.Exercise;
 import org.json.JSONArray;
 import org.json.JSONException;
 
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -598,6 +600,98 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         }
 
         return routineNames;
+    }
+
+    public int[] getConsecutiveWeeksWithActivity(int n) {
+        if (n < 1){
+            n = 1;
+        } else if (n > 7){
+            n = 7;
+        }
+
+        SQLiteDatabase db = getReadableDatabase();
+        int consecutiveWeeks = 0;
+        int thisWeekComplete = 0;
+        int totalActiveDays = 0;
+        try {
+            // Get the current date
+            Calendar calendar = Calendar.getInstance();
+            calendar.set(Calendar.DAY_OF_WEEK, Calendar.SUNDAY); // Start of the current week (Sunday)
+            SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
+
+            int activeDaysThisWeek = 0;
+            for (int i = 0; i < 7; i++) {
+                String date = dateFormat.format(calendar.getTime());
+                String query = "SELECT COUNT(*) FROM " + TABLE_DAILY_ACTIVITY + " WHERE " + KEY_DATE + " = ?";
+                Cursor cursor = db.rawQuery(query, new String[]{date});
+
+                if (cursor != null && cursor.moveToFirst()) {
+                    int count = cursor.getInt(0);
+                    if (count > 0) { // At least one exercise was done
+                        activeDaysThisWeek++;
+                    }
+                    cursor.close();
+                }
+
+                calendar.add(Calendar.DAY_OF_MONTH, 1); // Move to the next day
+            }
+
+            totalActiveDays += activeDaysThisWeek;
+            if (activeDaysThisWeek >= n){
+                thisWeekComplete = 1;
+            }
+
+
+
+            calendar.set(Calendar.DAY_OF_WEEK, Calendar.SUNDAY);
+            calendar.add(Calendar.DAY_OF_MONTH, -8);
+
+
+
+            boolean hasMoreWeeks = true;
+
+            while (hasMoreWeeks) {
+                int activeDaysInWeek = 0;
+
+                // Check all days in the current week
+                for (int i = 0; i < 7; i++) {
+                    String date = dateFormat.format(calendar.getTime());
+                    String query = "SELECT COUNT(*) FROM " + TABLE_DAILY_ACTIVITY + " WHERE " + KEY_DATE + " = ?";
+                    Cursor cursor = db.rawQuery(query, new String[]{date});
+
+                    if (cursor != null && cursor.moveToFirst()) {
+                        int count = cursor.getInt(0);
+                        if (count > 0) {
+                            activeDaysInWeek++;
+                        }
+                        cursor.close();
+                    }
+
+                    calendar.add(Calendar.DAY_OF_MONTH, -1);
+                }
+
+                String date2 = dateFormat.format(calendar.getTime());
+
+                // Check if the week qualifies
+                if (activeDaysInWeek >= n) {
+                    consecutiveWeeks++;
+                    totalActiveDays += activeDaysInWeek;
+                } else {
+                    hasMoreWeeks = false;
+                }
+
+            }
+
+            Log.e("SysOut", "Weeks in streak" + " : " + String.valueOf(consecutiveWeeks + thisWeekComplete));
+            Log.e("SysOut", "Total Active Days" + " : " + String.valueOf(totalActiveDays));
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            db.close();
+        }
+
+        return new int[]{consecutiveWeeks + thisWeekComplete, totalActiveDays};
     }
 
 

@@ -2,6 +2,7 @@ package com.test.bravo.ui.progress;
 
 import static java.lang.Math.max;
 import static java.lang.Math.min;
+import static java.lang.Math.round;
 
 import android.content.res.AssetManager;
 import android.os.Bundle;
@@ -42,6 +43,7 @@ public class ProgressFragment extends Fragment {
     private FragmentProgressBinding binding;
     private DatabaseHelper dbHelper;
     private float maxExerciseScore = 24;
+    private int streakWeekThreshold = 3;
 
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater,
@@ -60,7 +62,7 @@ public class ProgressFragment extends Fragment {
         ImageView imageMuscleMap = binding.imageMuscleMap;
 
         // Observe data from ViewModel and update the TextView
-        progressViewModel.getText().observe(getViewLifecycleOwner(), textWeekStreak::setText);
+//        progressViewModel.getText().observe(getViewLifecycleOwner(), textWeekStreak::setText);
 
         // Set the images for the ImageViews
         imageMuscleMap.setImageResource(R.drawable.musclemap);
@@ -103,19 +105,12 @@ public class ProgressFragment extends Fragment {
 
         }
 
-//        setExerciseAlpha("Chest", muscleImageMap, 0.7f, root);
-//        setExerciseAlpha("Shoulders", muscleImageMap, 0.3f, root);
-//        setExerciseAlpha("Triceps", muscleImageMap, 0.5f, root);
-//        setExerciseAlpha("Lats", muscleImageMap, 0.7f, root);
-//        setExerciseAlpha("Biceps", muscleImageMap, 1.0f, root);
-//        setExerciseAlpha("Upper Back", muscleImageMap, 0.5f, root);
 
         Map<String, List<String>> exercise_muscles = readJsonFromAssets("exercises.json");
         List<Exercise> thisWeekExercises = getLastWeekExercises();
 
 
         for (Exercise curExercise : thisWeekExercises) {
-            Log.e("SysOut", curExercise.getName());
 
             List<String> exerciseList = new ArrayList<>();
             if (exercise_muscles.containsKey(curExercise.getName())) {
@@ -136,15 +131,34 @@ public class ProgressFragment extends Fragment {
             }
         }
 
-//        Log.e("sysOut", String.valueOf(muscleGroupScore.get("Chest")));
-//        Log.e("sysOut", String.valueOf(muscleGroupScore.get("Biceps")));
-//        Log.e("sysOut", String.valueOf(muscleGroupScore.get("Quads")));
-
         for (String key : muscleImageMap.keySet()) {
             float completionRate = min(muscleGroupScore.get(key), maxExerciseScore)/maxExerciseScore;
             setExerciseAlpha(key, muscleImageMap, completionRate, root);
         }
 
+
+
+        int[] result = dbHelper.getConsecutiveWeeksWithActivity(streakWeekThreshold);
+
+        int streakWeeks = result[0];
+        int activeDays = result[1];
+
+        updateExerciseStreak(root, streakWeeks, activeDays);
+
+        float total_score = 0;
+        float max_total_score = 0;
+
+        for (String key : muscleImageMap.keySet()) {
+            total_score += muscleGroupScore.get(key);
+            max_total_score += maxExerciseScore;
+        }
+
+        Log.e("sysOut", String.valueOf(total_score));
+        Log.e("sysOut", String.valueOf(max_total_score));
+
+        TextView completion_percentage = root.findViewById(R.id.completion_percentage);
+        String completion_percentage_text = (round(100*(total_score/max_total_score)) + "% Complete" );
+        completion_percentage.setText(completion_percentage_text);
 
         return root;
     }
@@ -233,6 +247,28 @@ public class ProgressFragment extends Fragment {
         }
 
         return lastWeekExercises;
+    }
+
+    private void updateExerciseStreak(View root, int numWeeks, int numDays) {
+        // Update text_week_streak
+        TextView textWeekStreak = root.findViewById(R.id.text_week_streak);
+        String weekStreakText = numWeeks + "-week exercise streak" + (numWeeks == 0 ? "" : "!");
+        textWeekStreak.setText(weekStreakText);
+
+        // Update text_workouts_count
+        TextView textWorkoutsCount = root.findViewById(R.id.text_workouts_count);
+        String workoutText = "Made up of " + numDays +
+                " workout day" + (numDays == 1 ? "" : "s") + (numDays > 5 ? "!" : "");
+        textWorkoutsCount.setText(workoutText);
+
+//        // Update muscles worked text
+//        TextView musclesWorked = root.findViewById(R.id.muscles_worked);
+//        musclesWorked.setText("Muscles worked out this week:");
+//
+//        // Update completion percentage
+//        TextView completionPercentage = root.findViewById(R.id.completion_percentage);
+//        int completion = (int) ((double) numDays / (numWeeks * 7) * 100); // Example: Assuming 1 workout/day is perfect
+//        completionPercentage.setText(completion + "% Complete");
     }
 
 

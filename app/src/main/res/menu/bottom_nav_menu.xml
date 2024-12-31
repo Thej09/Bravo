@@ -12,13 +12,14 @@
         android:title="@string/title_home" />
 
     <item
+        android:id="@+id/navigation_progress"
+        android:icon="@drawable/baseline_trending_up_24"
+        android:title="Progress" />
+
+    <item
         android:id="@+id/navigation_notifications"
         android:icon="@drawable/baseline_calculate_24"
         android:title="@string/title_calculator" />
 
-    <item
-        android:id="@+id/navigation_progress"
-        android:icon="@drawable/baseline_trending_up_24"
-        android:title="Progress" />
 
 </menu>

@@ -17,14 +17,16 @@
         tools:layout="@layout/fragment_dashboard" />
 
     <fragment
+        android:id="@+id/navigation_progress"
+        android:name="com.test.bravo.ui.progress.ProgressFragment"
+        android:label="Progress"
+        tools:layout="@layout/fragment_progress" />
+
+    <fragment
         android:id="@+id/navigation_notifications"
         android:name="com.test.bravo.ui.notifications.NotificationsFragment"
         android:label="@string/title_calculator"
         tools:layout="@layout/fragment_notifications" />
 
-    <fragment
-        android:id="@+id/navigation_progress"
-        android:name="com.test.bravo.ui.progress.ProgressFragment"
-        android:label="Progress"
-        tools:layout="@layout/fragment_progress" />
+
 </navigation>
